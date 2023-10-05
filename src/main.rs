@@ -4,11 +4,8 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-mod constants;
-use constants::{BG_COLOR, SCREEN_H, SCREEN_W};
-
 mod util;
-use util::AppState;
+use util::{AppState, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera, Score};
 
 mod menu;
 use menu::MenuPlugin;
@@ -22,8 +19,6 @@ fn main() {
 			primary_window: Some(Window {
 				title: "Suika Clone".into(),
 				resolution: (SCREEN_W, SCREEN_H).into(),
-				fit_canvas_to_parent: true,
-				prevent_default_event_handling: false,
 				..default()
 			}),
 			..default()
@@ -34,7 +29,17 @@ fn main() {
 		))
 		.insert_resource(ClearColor(BG_COLOR))
 		.add_state::<AppState>()
-		.add_plugins(MenuPlugin)
+		.add_systems(Startup, initialize)
 		.add_plugins(InGamePlugin)
+		.add_plugins(MenuPlugin)
 		.run();
+}
+
+pub fn initialize(mut commands: Commands) {
+	// spawn camera
+  commands.spawn((Camera2dBundle::default(), MainCamera));
+	
+	// initialize score
+	commands.spawn(Score(0, 1000));
+
 }
