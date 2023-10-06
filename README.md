@@ -11,10 +11,14 @@ IonXeph's suika spin off: https://github.com/ionxeph/suika
 - rust/cargo v1.70.0
 - bevy v0.11.3
 - bevy_rapier2d v0.22.0
+- rand v0.8.5
 
-I make no guarantees on compatibility. 
+I make no guarantees on compatibility.
 
-`cargo run` should just work for anybody on windows 11 with rust v1.70.x
+`cargo run` should just work for anybody with rust v1.70.x
+
+`cargo build -r` to build an executable for your OS
+
 
 ### Acknowledgements
 
