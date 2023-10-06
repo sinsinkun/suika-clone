@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
-use crate::util::{AppState, Score, TEXT_COLOR};
+use crate::util::{AppState, Score, SpawnedFruit, TEXT_COLOR};
 
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(OnEnter(AppState::Menu), setup_menu)
+    app.add_systems(OnEnter(AppState::Menu), setup_menu.after(in_state(AppState::Menu)))
       .add_systems(Update, on_loop.run_if(in_state(AppState::Menu)))
       .add_systems(OnExit(AppState::Menu), cleanup)
       .add_systems(OnEnter(AppState::GameOver), setup_game_over)
@@ -32,6 +32,7 @@ fn setup_menu(mut commands: Commands) {
           ..default()
         },
       ),
+      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
       ..default()
     },
   ));
@@ -51,7 +52,7 @@ fn setup_game_over(mut commands: Commands, score_q: Query<&Score>) {
           ..default()
         }
       ),
-      transform: Transform::from_translation(Vec3::new(0.0, 40.0, 0.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, 40.0, 1.0)),
       ..default()
     },
   ));
@@ -70,6 +71,7 @@ fn setup_game_over(mut commands: Commands, score_q: Query<&Score>) {
           ..default()
         }
       ),
+      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
       ..default()
     }
   ));
@@ -87,7 +89,7 @@ fn setup_game_over(mut commands: Commands, score_q: Query<&Score>) {
           ..default()
         }
       ).with_alignment(TextAlignment::Center),
-      transform: Transform::from_translation(Vec3::new(0.0, -30.0, 0.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, -30.0, 1.0)),
       ..default()
     }
   ));
@@ -95,25 +97,24 @@ fn setup_game_over(mut commands: Commands, score_q: Query<&Score>) {
 
 fn on_loop(
   mut next_state: ResMut<NextState<AppState>>,
-  state: Res<State<AppState>>, 
+  // state: Res<State<AppState>>,
   mouse_button_input: Res<Input<MouseButton>>,
 ) {
   // println!("On loop in menu {:?}", state);
-
   if mouse_button_input.just_pressed(MouseButton::Left) {
-    if state.get() == &AppState::Menu {
-      println!("switching to game over");
-      next_state.set(AppState::GameOver)
-    }
-    if state.get() == &AppState::GameOver {
-      println!("switching to main menu");
-      next_state.set(AppState::Menu)
-    }
+    next_state.set(AppState::InGame)
   }
 }
 
-fn cleanup(mut commands: Commands, menu_items: Query<Entity, With<MenuItem>>) {
+fn cleanup(
+  mut commands: Commands, 
+  menu_items: Query<Entity, With<MenuItem>>,
+  fruits: Query<Entity, With<SpawnedFruit>>,
+) {
   for menu_item in menu_items.iter() {
     commands.entity(menu_item).despawn_recursive();
+  }
+  for fruit in fruits.iter() {
+    commands.entity(fruit).despawn_recursive();
   }
 }
