@@ -44,7 +44,7 @@ pub const SCREEN_H: f32 = 800.0;
 pub const CONTAINER_W: f32 = 400.0;
 pub const CONTAINER_H: f32 = 500.0;
 pub const CONTAINER_T: f32 = 12.0;
-pub const CONTAINER_P: f32 = 38.0;
+pub const CONTAINER_P: f32 = 32.0;
 
 // positions
 pub const HOLD_POS: Vec3 = Vec3::new(350.0, 200.0, 0.0);
@@ -59,7 +59,7 @@ pub const MIN_SPEED: f32 = 3.0;
 
 // colors
 pub const BG_COLOR: Color = Color::rgb(0.7843, 0.6549, 0.3373);
-pub const BG_NO_MOVE_COLOR: Color = Color::rgb(0.73, 0.6, 0.28);
+pub const OVERLAY_COLOR: Color = Color::rgba(0.0, 0.0, 0.0, 0.2);
 pub const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 pub const CONTAINER_COLOR: Color = Color::rgb(0.24, 0.42, 0.33);
 

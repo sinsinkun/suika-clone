@@ -75,7 +75,7 @@ fn setup_game_over(
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        "game over",
+        "game over. Press enter to try again.",
         TextStyle { 
           font_size: 30.0, 
           color: TEXT_COLOR,

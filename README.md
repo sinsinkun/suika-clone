@@ -10,7 +10,6 @@ IonXeph's suika spin off: https://github.com/ionxeph/suika
 
 ### To-do
 
-- Urgent: Fix controls priority on active_fruit
 - Add persistent scoring
 - Add more UI
 - Fix cup rendering bug

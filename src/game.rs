@@ -13,7 +13,7 @@ use crate::util::{
   CONTAINER_T,
   CONTAINER_P,
   CONTAINER_COLOR,
-  BG_NO_MOVE_COLOR,
+  OVERLAY_COLOR,
   SUIKA,
   HOLD_POS,
   HOLD_POS_FRUIT,
@@ -71,7 +71,7 @@ struct PreviewBar;
 #[derive(Component)]
 struct Controls {
   move_dir: f32,
-  enter: bool,
+  drop: bool,
   end_game: bool,
 }
 
@@ -137,7 +137,7 @@ fn spawn_cup(mut commands: Commands) {
     SpriteBundle {
       sprite: Sprite {
         custom_size: Some(Vec2::new(CONTAINER_P, wall_h)),
-        color: BG_NO_MOVE_COLOR,
+        color: OVERLAY_COLOR,
         ..default()
       },
       transform: Transform::from_xyz(
@@ -154,7 +154,7 @@ fn spawn_cup(mut commands: Commands) {
     SpriteBundle {
       sprite: Sprite {
         custom_size: Some(Vec2::new(CONTAINER_P, wall_h)),
-        color: BG_NO_MOVE_COLOR,
+        color: OVERLAY_COLOR,
         ..default()
       },
       transform: Transform::from_xyz(
@@ -177,7 +177,7 @@ fn spawn_permanent_ui(
     PermUIComponent,
     MaterialMesh2dBundle {
       mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
-      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
+      material: materials.add(ColorMaterial::from(OVERLAY_COLOR)),
       transform: Transform::from_translation(HOLD_POS),
       ..default()
     }
@@ -190,7 +190,7 @@ fn spawn_permanent_ui(
     PermUIComponent,
     MaterialMesh2dBundle {
       mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
-      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
+      material: materials.add(ColorMaterial::from(OVERLAY_COLOR)),
       transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
       ..default()
     }
@@ -203,7 +203,7 @@ fn spawn_temp_ui(
 ) {
   // insantiate controls
   commands.spawn((
-    Controls{ move_dir:0.0, enter:false, end_game:false },
+    Controls{ move_dir:0.0, drop:false, end_game:false },
     CoolDown{ timer:Timer::new(Duration::from_secs_f32(CLICK_DELAY), TimerMode::Once) }
   ));
 
@@ -294,13 +294,11 @@ fn handle_inputs(
       if keys.pressed(KeyCode::Q) || keys.pressed(KeyCode::Escape) {
         controls.end_game = true;
       }
-      if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return) {
-        if cooldown.timer.finished() {
-          controls.enter = true;
-          cooldown.timer.reset();
-        } 
+      if cooldown.timer.finished() && (keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return)) {
+        controls.drop = true;
+        cooldown.timer.reset();
       } else {
-        controls.enter = false;
+        controls.drop = false;
       }
       let mut move_dir = 0.0;
       if keys.pressed(KeyCode::Left) || keys.pressed(KeyCode::A) {
@@ -332,11 +330,12 @@ fn handle_active_fruit(
   match active_fruit_q.get_single_mut() {
     Ok((entity, transform, active_fruit)) => {
       // spawn active fruit
-      if input.enter {
+      if input.drop {
         let cur_fruit = SUIKA[active_fruit.0 as usize];
         let cur_x = transform.into_inner().translation.x;
         let cur_y = CONTAINER_H / 2.0;
-        let pos = Vec3::new(cur_x, cur_y, 2.0);
+        let cur_z = rand::thread_rng().gen_range(2.0..5.0);
+        let pos = Vec3::new(cur_x, cur_y, cur_z);
         
         // spawn collision fruit body
         spawn_collider_fruit(&mut commands, &mut meshes,  &mut materials, cur_fruit, pos);
@@ -403,7 +402,7 @@ fn handle_next_fruit(
   // spawn next fruit if not exist
   match next_fruit_q.get_single_mut() {
     Ok(entity) => {
-      if input.enter {
+      if input.drop {
         // despawn NextFruit
         commands.entity(entity).despawn_recursive();
         // spawn new NextFruit
@@ -439,7 +438,7 @@ fn handle_merging(
           let new_translation = Vec3::new(
             (fruit_a.2.translation.x + fruit_b.2.translation.x) / 2.0,
             (fruit_a.2.translation.y + fruit_b.2.translation.y) / 2.0,
-            2.0
+            rand::thread_rng().gen_range(2.0..5.0)
           );
           let new_fruit = SUIKA[(fruit_a.1.id + 1) as usize];
           // remove collided fruits
