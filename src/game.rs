@@ -170,7 +170,7 @@ fn spawn_permanent_ui(
 ) {
   // render hold area
   commands.spawn((
-    UIComponent,
+    PermUIComponent,
     MaterialMesh2dBundle {
       mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
       material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
@@ -178,13 +178,22 @@ fn spawn_permanent_ui(
       ..default()
     }
   ));
+
+  // render score area
+  let x = -HOLD_POS.x;
+  let y = HOLD_POS.y;
+  commands.spawn((
+    PermUIComponent,
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
+      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
+      transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
+      ..default()
+    }
+  ));
 }
 
-fn spawn_temp_ui(
-  mut commands: Commands,
-  mut meshes: ResMut<Assets<Mesh>>,
-  mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+fn spawn_temp_ui(mut commands: Commands) {
   // insantiate controls
   commands.spawn((
     Controls{ move_dir:0.0, enter:false, end_game:false },
@@ -194,15 +203,6 @@ fn spawn_temp_ui(
   // spawn score area
   let x = -HOLD_POS.x;
   let y = HOLD_POS.y;
-  commands.spawn((
-    UIComponent,
-    MaterialMesh2dBundle {
-      mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
-      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
-      transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
-      ..default()
-    }
-  ));
 
   // instantiate score
   commands.spawn((

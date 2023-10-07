@@ -66,15 +66,15 @@ pub const CONTAINER_COLOR: Color = Color::rgb(0.24, 0.42, 0.33);
 pub const CLICK_DELAY: f32 = 0.6;
 pub const MOVE_SPEED: f32 = 2.8;
 pub const SUIKA: [Fruit; 11] = [
-  Fruit::new(0, 31.2, 0, Color::rgb(0.3373, 0.5686, 0.7843)),
-  Fruit::new(1, 48.0, 1, Color::rgb(0.3804, 0.5373, 0.7922)),
-  Fruit::new(2, 64.8, 3, Color::rgb(0.4431, 0.5059, 0.7882)),
-  Fruit::new(3, 72.0, 6, Color::rgb(0.5137, 0.4667, 0.7686)),
-  Fruit::new(4, 92.4, 10, Color::rgb(0.5882, 0.4196, 0.7333)),
-  Fruit::new(5, 110.4, 15, Color::rgb(0.6549, 0.3686, 0.6824)),
-  Fruit::new(6, 116.4, 21, Color::rgb(0.7098, 0.3137, 0.6196)),
-  Fruit::new(7, 154.8, 28, Color::rgb(0.7569, 0.2549, 0.5373)),
-  Fruit::new(8, 184.8, 36, Color::rgb(0.7843, 0.1922, 0.4471)),
-  Fruit::new(9, 208.8, 45, Color::rgb(0.7922, 0.1412, 0.3490)),
-  Fruit::new(10, 244.8, 55, Color::rgb(0.7843, 0.1176, 0.2431))
+  Fruit::new(0, 31.2, 1, Color::rgb(0.3373, 0.5686, 0.7843)),
+  Fruit::new(1, 48.0, 3, Color::rgb(0.3804, 0.5373, 0.7922)),
+  Fruit::new(2, 64.8, 6, Color::rgb(0.4431, 0.5059, 0.7882)),
+  Fruit::new(3, 72.0, 10, Color::rgb(0.5137, 0.4667, 0.7686)),
+  Fruit::new(4, 92.4, 15, Color::rgb(0.5882, 0.4196, 0.7333)),
+  Fruit::new(5, 110.4, 21, Color::rgb(0.6549, 0.3686, 0.6824)),
+  Fruit::new(6, 116.4, 28, Color::rgb(0.7098, 0.3137, 0.6196)),
+  Fruit::new(7, 154.8, 36, Color::rgb(0.7569, 0.2549, 0.5373)),
+  Fruit::new(8, 184.8, 45, Color::rgb(0.7843, 0.1922, 0.4471)),
+  Fruit::new(9, 208.8, 55, Color::rgb(0.7922, 0.1412, 0.3490)),
+  Fruit::new(10, 244.8, 70, Color::rgb(0.7843, 0.1176, 0.2431)),
 ];
