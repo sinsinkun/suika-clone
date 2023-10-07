@@ -72,6 +72,7 @@ struct PreviewBar;
 #[derive(Component, Debug)]
 struct Controls {
   move_dir: f32,
+  drop_lock: bool,
   drop: bool,
   end_game: bool,
 }
@@ -219,7 +220,7 @@ fn spawn_temp_ui(
 ) {
   // insantiate controls
   commands.spawn((
-    Controls{ move_dir:0.0, drop:false, end_game:false },
+    Controls{ move_dir:0.0, drop_lock:false, drop:false, end_game:false },
     CoolDown{ timer:Timer::new(Duration::from_secs_f32(CLICK_DELAY), TimerMode::Once) }
   ));
 
@@ -307,11 +308,15 @@ fn handle_inputs(
   match controls.get_single_mut() {
     Ok((mut controls, mut cooldown)) => {
       cooldown.timer.tick(time.delta());
+      if cooldown.timer.just_finished() {
+        controls.drop_lock = false;
+      }
       if keys.pressed(KeyCode::Q) || keys.pressed(KeyCode::Escape) {
         controls.end_game = true;
       }
-      if cooldown.timer.finished() && (keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return)) {
+      if !controls.drop_lock && (keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return)) {
         controls.drop = true;
+        controls.drop_lock = true;
         cooldown.timer.reset();
       } else {
         controls.drop = false;
@@ -347,7 +352,6 @@ fn handle_active_fruit(
     Ok((entity, transform, active_fruit)) => {
       // spawn active fruit
       if input.drop {
-        println!("activated drop in active fruit, {:?}", &input);
         let cur_fruit = SUIKA[active_fruit.0 as usize];
         let cur_x = transform.into_inner().translation.x;
         let cur_y = CONTAINER_H / 2.0;
@@ -420,7 +424,6 @@ fn handle_next_fruit(
   match next_fruit_q.get_single_mut() {
     Ok(entity) => {
       if input.drop {
-        println!("activated drop in next_fruit");
         // despawn NextFruit
         commands.entity(entity).despawn_recursive();
         // spawn new NextFruit
@@ -465,7 +468,7 @@ fn handle_merging(
           // spawn new fruit from SUIKA + 1
           spawn_collider_fruit(&mut commands,  &mut meshes, &mut materials, new_fruit, new_translation);
           // add points
-          score.0 += fruit_a.1.score;
+          score.0 += new_fruit.score;
           // exit for loop - only calculate one successful merge per frame
           break;
         }
@@ -503,11 +506,13 @@ fn pause_state(
     commands.entity(e).despawn_recursive();
   }
 
+  // TODO: add remaining fruits to score
+
   // calculate high score:
   if score.0 > score.1 {
     score.1 = score.0;
   }
-  // pause physics
+  // TODO: pause physics
 }
 
 // --- HELPER FUNCTIONS ---
@@ -594,7 +599,7 @@ fn spawn_collider_fruit(
     Friction { coefficient: FRICTION, combine_rule: CoefficientCombineRule::Max },
     RigidBody::Dynamic,
     GravityScale(GRAVITY),
-    Damping { linear_damping: DAMPENING, angular_damping: 1.0 },
+    Damping { linear_damping: DAMPENING, angular_damping: 0.0 },
     Restitution::coefficient(RESTITUATION),
     Velocity {linvel: Vec2::new(0.0, 0.0), angvel: 0.4},
     ActiveEvents::COLLISION_EVENTS,
