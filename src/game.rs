@@ -22,24 +22,24 @@ use crate::util::{
   RESTITUATION,
   MIN_SPEED,
   CLICK_DELAY,
-  TEXT_COLOR,
-  MAX_SPEED,
-  MAX_X_VELOCITY_BEFORE_CLAMP,
-  MAX_Y_VELOCITY_BEFORE_CLAMP,
+  TEXT_COLOR, 
+  FRICTION,
 };
 
 pub struct InGamePlugin;
 
 impl Plugin for InGamePlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(OnEnter(AppState::InGame), setup_game)
+    app
+      .add_systems(Startup, (spawn_cup, spawn_permanent_ui))
+      .add_systems(OnEnter(AppState::InGame), spawn_temp_ui)
       .add_systems(Update, (
           end_game,
           handle_inputs,
           handle_active_fruit,
           handle_next_fruit,
           handle_merging,
-          restrict_velocity,
+          update_score,
         ).run_if(in_state(AppState::InGame)))
       .add_systems(OnExit(AppState::InGame), pause_state);
   }
@@ -48,6 +48,9 @@ impl Plugin for InGamePlugin {
 // -- COMPONENTS --
 #[derive(Component)]
 struct UIComponent;
+
+#[derive(Component)]
+struct PermUIComponent;
 
 #[derive(Component)]
 struct Cup;
@@ -69,48 +72,7 @@ struct Controls {
 }
 
 // -- SYSTEMS --
-fn setup_game(
-  mut commands: Commands, 
-  mut score_q: Query<&mut Score>,
-  mut meshes: ResMut<Assets<Mesh>>,
-  mut materials: ResMut<Assets<ColorMaterial>>,
-  cup: Query<Entity, With<Cup>>,
-) {
-  // setup initial state
-
-  // spawn cup base with collider
-  if cup.is_empty() {
-    spawn_cup(&mut commands);
-  }
-  
-  // render hold area
-  commands.spawn((
-    UIComponent,
-    MaterialMesh2dBundle {
-      mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
-      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
-      transform: Transform::from_translation(HOLD_POS),
-      ..default()
-    }
-  ));
-
-  // insantiate controls
-  commands.spawn((
-    Controls{ move_dir:0.0, enter:false, end_game:false },
-    CoolDown{ timer:Timer::new(Duration::from_secs_f32(CLICK_DELAY), TimerMode::Once) }
-  ));
-
-  // reset current score
-  match score_q.get_single_mut() {
-    Ok(mut score) => {
-      score.0 = 0;
-    },
-    Err(_) => println!("Could not find score")
-  }
-
-}
-
-fn spawn_cup(commands: &mut Commands) {
+fn spawn_cup(mut commands: Commands) {
   let container_base = -0.75 * CONTAINER_H;
   commands.spawn((
     Cup,
@@ -141,7 +103,7 @@ fn spawn_cup(commands: &mut Commands) {
       transform: Transform::from_xyz(
         -CONTAINER_W / 2.0,
         wall_base,
-        0.0,
+        1.0,
       ),
       ..default()
     }
@@ -159,7 +121,7 @@ fn spawn_cup(commands: &mut Commands) {
       transform: Transform::from_xyz(
         CONTAINER_W / 2.0,
         wall_base,
-        0.0,
+        1.0,
       ),
       ..default()
     },
@@ -177,7 +139,7 @@ fn spawn_cup(commands: &mut Commands) {
       transform: Transform::from_xyz(
         -(CONTAINER_W - CONTAINER_P) / 2.0,
         wall_base,
-        0.0,
+        -2.0,
       ),
       ..default()
     },
@@ -194,10 +156,70 @@ fn spawn_cup(commands: &mut Commands) {
       transform: Transform::from_xyz(
         (CONTAINER_W - CONTAINER_P) / 2.0,
         wall_base,
-        0.0,
+        -2.0,
       ),
       ..default()
     },
+  ));
+}
+
+fn spawn_permanent_ui(
+  mut commands: Commands, 
+  mut meshes: ResMut<Assets<Mesh>>,
+  mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+  // render hold area
+  commands.spawn((
+    UIComponent,
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
+      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
+      transform: Transform::from_translation(HOLD_POS),
+      ..default()
+    }
+  ));
+}
+
+fn spawn_temp_ui(
+  mut commands: Commands,
+  mut meshes: ResMut<Assets<Mesh>>,
+  mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+  // insantiate controls
+  commands.spawn((
+    Controls{ move_dir:0.0, enter:false, end_game:false },
+    CoolDown{ timer:Timer::new(Duration::from_secs_f32(CLICK_DELAY), TimerMode::Once) }
+  ));
+
+  // spawn score area
+  let x = -HOLD_POS.x;
+  let y = HOLD_POS.y;
+  commands.spawn((
+    UIComponent,
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
+      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
+      transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
+      ..default()
+    }
+  ));
+
+  // instantiate score
+  commands.spawn((
+    UIComponent,
+    Score(0, 0),
+    Text2dBundle {
+      text: Text::from_section(
+        "Score: 0",
+        TextStyle {
+          font_size: 30.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(x, y, 10.0)),
+      ..default()
+    }
   ));
 }
 
@@ -286,36 +308,11 @@ fn handle_active_fruit(
       if input.enter {
         let cur_fruit = SUIKA[active_fruit.0 as usize];
         let cur_x = transform.into_inner().translation.x;
+        let cur_y = CONTAINER_H / 2.0;
+        let pos = Vec3::new(cur_x, cur_y, 2.0);
+        
         // spawn collision fruit body
-        commands.spawn((
-          cur_fruit,
-          Collider::ball(cur_fruit.size / 2.0),
-          ColliderMassProperties::Density(cur_fruit.size.log2()),
-          RigidBody::Dynamic,
-          GravityScale(GRAVITY),
-          Restitution::coefficient(RESTITUATION),
-          Velocity {linvel: Vec2::new(0.0, 0.0), angvel: 0.4},
-          ActiveEvents::COLLISION_EVENTS,
-          MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Circle::new(cur_fruit.size / 2.0).into()).into(),
-            material: materials.add(ColorMaterial::from(cur_fruit.color)),
-            transform: Transform::from_translation(Vec3::new(cur_x, CONTAINER_H / 2.0, 0.5)),
-            ..default()
-          },
-        )).with_children(|root| {
-          root.spawn(Text2dBundle {
-            text: Text::from_section(
-              cur_fruit.id.to_string(),
-              TextStyle {
-                font_size: 20.0, 
-              color: TEXT_COLOR,
-                ..default()
-              }
-            ),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-            ..default()
-          });
-        });
+        spawn_collider_fruit(&mut commands, &mut meshes,  &mut materials, cur_fruit, pos);
 
         // despawn active fruit
         commands.entity(entity).despawn_recursive();
@@ -323,47 +320,16 @@ fn handle_active_fruit(
         // pick next fruit
         let num: i32 = match next_fruit_q.get_single() {
           Ok(next_fruit) => next_fruit.0,
-          Err(_) => rand::thread_rng().gen_range(0..5)
+          Err(_) => rand::thread_rng().gen_range(0..4)
         };
         let active_fruit = SUIKA[num as usize];
+        let pos = Vec3::new(cur_x, CONTAINER_H / 2.0, 1.0);
+        spawn_active_fruit(&mut commands, &mut meshes, &mut materials, active_fruit, pos);
 
-        // spawn new active fruit
-        commands.spawn((
-          ActiveFruit(num),
-          MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Circle::new(active_fruit.size / 2.0).into()).into(),
-            material: materials.add(ColorMaterial::from(active_fruit.color)),
-            transform: Transform::from_translation(Vec3::new(cur_x, CONTAINER_H / 2.0, 0.4)),
-            ..default()
-          },
-        )).with_children(|root| {
-          // spawn preview bar
-          root.spawn(MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, 1.25 * CONTAINER_H)).into()).into(),
-            material: materials.add(ColorMaterial::from(Color::WHITE)),
-            transform: Transform::from_translation(Vec3::new(0.0, -0.625 * CONTAINER_H, -1.0)),
-            ..default()
-          });
-          // spawn text
-          root.spawn(Text2dBundle {
-            text: Text::from_section(
-              active_fruit.id.to_string(),
-              TextStyle {
-                font_size: 20.0, 
-              color: TEXT_COLOR,
-                ..default()
-              }
-            ),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-            ..default()
-          });
-        });
-
-        // start cooldown
         return;
       }
       
-      // update active fruit render
+      // calculations for updating active fruit
       let new_x = transform.clone().translation.x + MOVE_SPEED * input.move_dir;
       let limit1 = CONTAINER_W / 2.0 - CONTAINER_P;
       let suika_num = active_fruit.0;
@@ -374,6 +340,7 @@ fn handle_active_fruit(
       } else {
         limit2
       };
+      // update active fruit render
       if new_x > -limit && new_x < limit {
         transform.into_inner().translation.x = new_x;
       } else if new_x >= limit {
@@ -383,44 +350,15 @@ fn handle_active_fruit(
       }
     },
     Err(_) => {
-      // pick next fruit
+      // pick new fruit
       let num: i32 = match next_fruit_q.get_single() {
         Ok(next_fruit) => next_fruit.0,
         Err(_) => rand::thread_rng().gen_range(0..4)
       };
       let active_fruit = SUIKA[num as usize];
+      let pos = Vec3::new(0.0, CONTAINER_H / 2.0, 1.0);
+      spawn_active_fruit(&mut commands, &mut meshes, &mut materials, active_fruit, pos);
 
-      // spawn new active fruit
-      commands.spawn((
-        ActiveFruit(num),
-        MaterialMesh2dBundle {
-          mesh: meshes.add(shape::Circle::new(active_fruit.size / 2.0).into()).into(),
-          material: materials.add(ColorMaterial::from(active_fruit.color)),
-          transform: Transform::from_translation(Vec3::new(0.0, CONTAINER_H / 2.0, 0.5)),
-          ..default()
-        },
-      )).with_children(|root| {
-        // spawn preview bar
-        root.spawn(MaterialMesh2dBundle {
-          mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, 1.25 * CONTAINER_H)).into()).into(),
-          material: materials.add(ColorMaterial::from(Color::WHITE)),
-          transform: Transform::from_translation(Vec3::new(0.0, -0.625 * CONTAINER_H, -1.0)),
-          ..default()
-        });
-        // spawn text
-        root.spawn(Text2dBundle {
-          text: Text::from_section(
-            active_fruit.id.to_string(),
-            TextStyle {
-              font_size: 20.0, 
-            color: TEXT_COLOR,
-              ..default()
-            }
-          ),
-          transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-          ..default()
-        });
-      });
     }
   }
 }
@@ -433,7 +371,7 @@ fn handle_next_fruit(
   mut next_fruit_q: Query<Entity, With<NextFruit>>,
 ) {
   let input = controls.single();
-  // spawn active fruit if not exist
+  // spawn next fruit if not exist
   match next_fruit_q.get_single_mut() {
     Ok(entity) => {
       if input.enter {
@@ -441,63 +379,16 @@ fn handle_next_fruit(
         commands.entity(entity).despawn_recursive();
         // spawn new NextFruit
         // pick random fruit
-        let num: i32 = rand::thread_rng().gen_range(0..5);
+        let num: i32 = rand::thread_rng().gen_range(0..4);
         let next_fruit = SUIKA[num as usize];
-
-        // spawn new NextFruit
-        commands.spawn((
-          NextFruit(num),
-          MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Circle::new(next_fruit.size / 2.0).into()).into(),
-            material: materials.add(ColorMaterial::from(next_fruit.color)),
-            transform: Transform::from_translation(HOLD_POS_FRUIT),
-            ..default()
-          }
-        )).with_children(|root| {
-          root.spawn(Text2dBundle {
-            text: Text::from_section(
-              next_fruit.id.to_string(),
-              TextStyle {
-                font_size: 20.0, 
-              color: TEXT_COLOR,
-                ..default()
-              }
-            ),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-            ..default()
-          });
-        });
-        return;
+        spawn_next_fruit(&mut commands, &mut meshes, &mut materials, next_fruit);
       }
     },
     Err(_) => {
       // pick random fruit
       let num: i32 = rand::thread_rng().gen_range(0..4);
       let next_fruit = SUIKA[num as usize];
-
-      // spawn new NextFruit
-      commands.spawn((
-        NextFruit(num),
-        MaterialMesh2dBundle {
-          mesh: meshes.add(shape::Circle::new(next_fruit.size / 2.0).into()).into(),
-          material: materials.add(ColorMaterial::from(next_fruit.color)),
-          transform: Transform::from_translation(HOLD_POS_FRUIT),
-          ..default()
-        }
-      )).with_children(|root| {
-        root.spawn(Text2dBundle {
-          text: Text::from_section(
-            next_fruit.id.to_string(),
-            TextStyle {
-              font_size: 20.0, 
-            color: TEXT_COLOR,
-              ..default()
-            }
-          ),
-          transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-          ..default()
-        });
-      });
+      spawn_next_fruit(&mut commands, &mut meshes, &mut materials, next_fruit);
     }
   }
 }
@@ -508,6 +399,7 @@ fn handle_merging(
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
   fruits: Query<(Entity, &Fruit, &Transform)>,
+  mut score: Query<&mut Score>,
 ) {
   for collision in collisions.iter() {
     if let CollisionEvent::Started(collider_a, collider_b, _) = collision {
@@ -518,42 +410,24 @@ fn handle_merging(
           let new_translation = Vec3::new(
             (fruit_a.2.translation.x + fruit_b.2.translation.x) / 2.0,
             (fruit_a.2.translation.y + fruit_b.2.translation.y) / 2.0,
-            0.5
+            2.0
           );
           let new_fruit = SUIKA[(fruit_a.1.id + 1) as usize];
           // remove collided fruits
           commands.entity(fruit_a.0).despawn_recursive();
           commands.entity(fruit_b.0).despawn_recursive();
           // spawn new fruit from SUIKA + 1
-          commands.spawn((
-            new_fruit,
-            Collider::ball(new_fruit.size / 2.0),
-            ColliderMassProperties::Density(new_fruit.size.log2()),
-            RigidBody::Dynamic,
-            GravityScale(GRAVITY),
-            Restitution::coefficient(RESTITUATION),
-            Velocity {linvel: Vec2::new(0.0, 0.0), angvel: 0.4},
-            ActiveEvents::COLLISION_EVENTS,
-            MaterialMesh2dBundle {
-              mesh: meshes.add(shape::Circle::new(new_fruit.size / 2.0).into()).into(),
-              material: materials.add(ColorMaterial::from(new_fruit.color)),
-              transform: Transform::from_translation(new_translation),
-              ..default()
+          spawn_collider_fruit(&mut commands,  &mut meshes, &mut materials, new_fruit, new_translation);
+          // add points
+          match score.get_single_mut() {
+            Ok(s) => {
+              let scr = s.into_inner();
+              scr.0 += fruit_a.1.score;
             },
-          )).with_children(|root| {
-            root.spawn(Text2dBundle {
-              text: Text::from_section(
-                new_fruit.id.to_string(),
-                TextStyle {
-                  font_size: 20.0, 
-                color: TEXT_COLOR,
-                  ..default()
-                }
-              ),
-              transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-              ..default()
-            });
-          });
+            Err(_) => {
+              println!("Could not find score object");
+            }
+          }
           // exit for loop - only calculate one successful merge per frame
           break;
         }
@@ -563,14 +437,12 @@ fn handle_merging(
   }
 }
 
-fn restrict_velocity(mut velocities: Query<&mut Velocity>) {
-  for mut v in velocities.iter_mut() {
-    if v.linvel.y > MAX_Y_VELOCITY_BEFORE_CLAMP {
-      v.linvel = v.linvel.clamp_length_max(MAX_SPEED);
-    }
-    if v.linvel.x > MAX_X_VELOCITY_BEFORE_CLAMP {
-        v.linvel = v.linvel.clamp_length_max(MAX_SPEED);
-    }
+fn update_score(
+  mut score_q: Query<(&mut Text, &Score), With<Score>>,
+) {
+  if let Ok((score_t, score_v)) = score_q.get_single_mut() {
+    let text = score_t.into_inner();
+    text.sections[0].value = "Score: ".to_owned() + &score_v.0.to_string();
   }
 }
 
@@ -579,10 +451,124 @@ fn pause_state(
   controls: Query<Entity, With<Controls>>,
   active_fruit: Query<Entity, With<ActiveFruit>>,
   next_fruit: Query<Entity, With<NextFruit>>,
+  ui_elements: Query<Entity, With<UIComponent>>,
 ) {
   // destroy components that should only have 1 existence
   commands.entity(controls.single()).despawn_recursive();
   commands.entity(active_fruit.single()).despawn_recursive();
   commands.entity(next_fruit.single()).despawn_recursive();
+
+  // destroy ui elements only shown during gameplay
+  for e in ui_elements.iter() {
+    commands.entity(e).despawn_recursive();
+  }
   // pause physics
+}
+
+fn spawn_active_fruit(
+  commands: &mut Commands,
+  meshes: &mut ResMut<Assets<Mesh>>,
+  materials: &mut ResMut<Assets<ColorMaterial>>,
+  fruit: Fruit,
+  position: Vec3,
+) {
+  commands.spawn((
+    ActiveFruit(fruit.id),
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Circle::new(fruit.size / 2.0).into()).into(),
+      material: materials.add(ColorMaterial::from(fruit.color)),
+      transform: Transform::from_translation(position),
+      ..default()
+    },
+  )).with_children(|root| {
+    // spawn preview bar
+    root.spawn(MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, 1.25 * CONTAINER_H)).into()).into(),
+      material: materials.add(ColorMaterial::from(Color::WHITE)),
+      transform: Transform::from_translation(Vec3::new(0.0, -0.625 * CONTAINER_H, -1.0)),
+      ..default()
+    });
+    // spawn text
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        fruit.id.to_string(),
+        TextStyle {
+          font_size: 20.0, 
+        color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+      ..default()
+    });
+  });
+}
+
+fn spawn_next_fruit(
+  commands: &mut Commands,
+  meshes: &mut ResMut<Assets<Mesh>>,
+  materials: &mut ResMut<Assets<ColorMaterial>>,
+  fruit: Fruit,
+) {
+  commands.spawn((
+    NextFruit(fruit.id),
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Circle::new(fruit.size / 2.0).into()).into(),
+      material: materials.add(ColorMaterial::from(fruit.color)),
+      transform: Transform::from_translation(HOLD_POS_FRUIT),
+      ..default()
+    }
+  )).with_children(|root| {
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        fruit.id.to_string(),
+        TextStyle {
+          font_size: 20.0, 
+        color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+      ..default()
+    });
+  });
+}
+
+fn spawn_collider_fruit(
+  commands: &mut Commands,
+  meshes: &mut ResMut<Assets<Mesh>>,
+  materials: &mut ResMut<Assets<ColorMaterial>>,
+  cur_fruit: Fruit,
+  position: Vec3,
+) {
+  commands.spawn((
+    cur_fruit,
+    Collider::ball(cur_fruit.size / 2.0),
+    ColliderMassProperties::Density(cur_fruit.size.log2()),
+    Friction { coefficient: FRICTION, combine_rule: CoefficientCombineRule::Max },
+    RigidBody::Dynamic,
+    GravityScale(GRAVITY),
+    Restitution::coefficient(RESTITUATION),
+    Velocity {linvel: Vec2::new(0.0, 0.0), angvel: 0.4},
+    ActiveEvents::COLLISION_EVENTS,
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Circle::new(cur_fruit.size / 2.0).into()).into(),
+      material: materials.add(ColorMaterial::from(cur_fruit.color)),
+      transform: Transform::from_translation(position),
+      ..default()
+    },
+  )).with_children(|root| {
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        cur_fruit.id.to_string(),
+        TextStyle {
+          font_size: 20.0, 
+        color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)),
+      ..default()
+    });
+  });
 }

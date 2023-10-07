@@ -5,7 +5,7 @@ use bevy::{prelude::*, window::WindowResized};
 use bevy_rapier2d::prelude::*;
 
 mod util;
-use util::{AppState, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera, Score};
+use util::{AppState, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera};
 
 mod menu;
 use menu::MenuPlugin;
@@ -39,8 +39,6 @@ fn main() {
 fn initialize(mut commands: Commands) {
 	// spawn camera
   commands.spawn((Camera2dBundle::default(), MainCamera));
-	// initialize score
-	commands.spawn(Score(0, 1000));
 }
 
 fn zoom_camera(

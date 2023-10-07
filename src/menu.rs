@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::util::{AppState, Score, Fruit, TEXT_COLOR};
+use crate::util::{AppState, Fruit, TEXT_COLOR};
 
 pub struct MenuPlugin;
 
@@ -32,13 +32,13 @@ fn setup_menu(mut commands: Commands) {
           ..default()
         },
       ),
-      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
       ..default()
     },
   ));
 }
 
-fn setup_game_over(mut commands: Commands, score_q: Query<&Score>) {
+fn setup_game_over(mut commands: Commands) {
 
   // game over text
   commands.spawn((
@@ -52,44 +52,41 @@ fn setup_game_over(mut commands: Commands, score_q: Query<&Score>) {
           ..default()
         }
       ),
-      transform: Transform::from_translation(Vec3::new(0.0, 40.0, 1.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, 40.0, 10.0)),
       ..default()
     },
   ));
 
   // score
-  let score = score_q.get_single().unwrap();
-  let text1 = "score: ".to_owned() + &score.0.to_string();
   commands.spawn((
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        text1,
+        "Score: TODO",
         TextStyle {
           font_size: 30.0, 
         color: TEXT_COLOR,
           ..default()
         }
       ),
-      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
       ..default()
     }
   ));
 
   // high score
-  let text2 = "high score: ".to_owned() + &score.1.to_string();
   commands.spawn((
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        text2,
+        "High score: TODO",
         TextStyle {
           font_size: 30.0, 
         color: TEXT_COLOR,
           ..default()
         }
       ).with_alignment(TextAlignment::Center),
-      transform: Transform::from_translation(Vec3::new(0.0, -30.0, 1.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, -30.0, 10.0)),
       ..default()
     }
   ));
