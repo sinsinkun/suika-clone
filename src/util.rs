@@ -49,6 +49,7 @@ pub const CONTAINER_P: f32 = 32.0;
 // positions
 pub const HOLD_POS: Vec3 = Vec3::new(350.0, 200.0, 0.0);
 pub const HOLD_POS_FRUIT: Vec3 = Vec3::new(350.0, 200.0, 0.5);
+pub const LEGEND_POS: Vec3 = Vec3::new(400.0, -80.0, 0.0);
 
 // physics
 pub const GRAVITY: f32 = 8.0;

@@ -25,6 +25,7 @@ use crate::util::{
   TEXT_COLOR, 
   FRICTION,
   DAMPENING,
+  LEGEND_POS,
 };
 
 pub struct InGamePlugin;
@@ -68,7 +69,7 @@ struct NextFruit(i32);
 #[derive(Component)]
 struct PreviewBar;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 struct Controls {
   move_dir: f32,
   drop: bool,
@@ -171,6 +172,7 @@ fn spawn_permanent_ui(
   mut commands: Commands, 
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
+  asset_server: Res<AssetServer>,
 ) {
   // render hold area
   commands.spawn((
@@ -194,6 +196,20 @@ fn spawn_permanent_ui(
       transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
       ..default()
     }
+  ));
+
+  // render legend
+  commands.spawn((
+    PermUIComponent,
+    SpriteBundle {
+      texture: asset_server.load("suika_clone_legend.png"),
+      transform: Transform {
+        translation: LEGEND_POS,
+        scale: Vec3::new(0.6, 0.6, 1.0), 
+        ..default()
+      },
+      ..default()
+    },
   ));
 }
 
@@ -331,6 +347,7 @@ fn handle_active_fruit(
     Ok((entity, transform, active_fruit)) => {
       // spawn active fruit
       if input.drop {
+        println!("activated drop in active fruit, {:?}", &input);
         let cur_fruit = SUIKA[active_fruit.0 as usize];
         let cur_x = transform.into_inner().translation.x;
         let cur_y = CONTAINER_H / 2.0;
@@ -403,6 +420,7 @@ fn handle_next_fruit(
   match next_fruit_q.get_single_mut() {
     Ok(entity) => {
       if input.drop {
+        println!("activated drop in next_fruit");
         // despawn NextFruit
         commands.entity(entity).despawn_recursive();
         // spawn new NextFruit

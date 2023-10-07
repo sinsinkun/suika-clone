@@ -12,7 +12,6 @@ IonXeph's suika spin off: https://github.com/ionxeph/suika
 
 - Add persistent scoring
 - Add more UI
-- Fix cup rendering bug
 - Balancing
 
 ### Setup
