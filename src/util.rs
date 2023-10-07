@@ -51,8 +51,9 @@ pub const HOLD_POS: Vec3 = Vec3::new(350.0, 200.0, 0.0);
 pub const HOLD_POS_FRUIT: Vec3 = Vec3::new(350.0, 200.0, 0.5);
 
 // physics
-pub const GRAVITY: f32 = 4.0;
-pub const RESTITUATION: f32 = 0.01;
+pub const GRAVITY: f32 = 8.0;
+pub const DAMPENING: f32 = 0.6;
+pub const RESTITUATION: f32 = 0.005;
 pub const FRICTION: f32 = 0.4;
 pub const MIN_SPEED: f32 = 3.0;
 
@@ -63,7 +64,7 @@ pub const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 pub const CONTAINER_COLOR: Color = Color::rgb(0.24, 0.42, 0.33);
 
 // game objects
-pub const CLICK_DELAY: f32 = 0.6;
+pub const CLICK_DELAY: f32 = 0.4;
 pub const MOVE_SPEED: f32 = 2.8;
 pub const SUIKA: [Fruit; 11] = [
   Fruit::new(0, 31.2, 1, Color::rgb(0.3373, 0.5686, 0.7843)),

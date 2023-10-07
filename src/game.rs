@@ -24,6 +24,7 @@ use crate::util::{
   CLICK_DELAY,
   TEXT_COLOR, 
   FRICTION,
+  DAMPENING,
 };
 
 pub struct InGamePlugin;
@@ -374,7 +375,8 @@ fn handle_active_fruit(
         transform.into_inner().translation.x = -limit;
       }
     },
-    Err(_) => {
+    Err(e) => {
+      println!("Err: {:?}", e);
       // pick new fruit
       let num: i32 = match next_fruit_q.get_single() {
         Ok(next_fruit) => next_fruit.0,
@@ -573,6 +575,7 @@ fn spawn_collider_fruit(
     Friction { coefficient: FRICTION, combine_rule: CoefficientCombineRule::Max },
     RigidBody::Dynamic,
     GravityScale(GRAVITY),
+    Damping { linear_damping: DAMPENING, angular_damping: 1.0 },
     Restitution::coefficient(RESTITUATION),
     Velocity {linvel: Vec2::new(0.0, 0.0), angvel: 0.4},
     ActiveEvents::COLLISION_EVENTS,

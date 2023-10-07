@@ -25,7 +25,7 @@ fn setup_menu(mut commands: Commands) {
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        "click space to begin",
+        "click enter to begin",
         TextStyle {
           font_size: 30.0,
           color: TEXT_COLOR,
@@ -35,7 +35,34 @@ fn setup_menu(mut commands: Commands) {
       transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
       ..default()
     },
-  ));
+  )).with_children(|root| {
+    // render controls
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        "controls: left/right to move,\nspace to drop fruit",
+        TextStyle {
+          font_size: 25.0,
+          color: TEXT_COLOR,
+          ..default()
+        },
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, 80.0, 0.0)),
+      ..default()
+    });
+    // render instructions
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        "instructions: balls are labelled 0-10.\nSame number balls can merge to form a larger ball.\nAim to get #10!",
+        TextStyle {
+          font_size: 25.0,
+          color: TEXT_COLOR,
+          ..default()
+        },
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, -120.0, 0.0)),
+      ..default()
+    });
+  });
 }
 
 fn setup_game_over(
@@ -82,7 +109,7 @@ fn setup_game_over(
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        "High score: ".to_owned() + &score.0.to_string(),
+        "High score: ".to_owned() + &score.1.to_string(),
         TextStyle {
           font_size: 30.0, 
         color: TEXT_COLOR,
@@ -100,7 +127,7 @@ fn on_loop(
   keys: Res<Input<KeyCode>>,
 ) {
   
-  if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return) {
+  if keys.just_pressed(KeyCode::Return) {
     next_state.set(AppState::InGame)
   }
 }
