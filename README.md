@@ -6,6 +6,12 @@ Not a direct copy, but taking some ideas from his implementation.
 
 IonXeph's suika spin off: https://github.com/ionxeph/suika
 
+### To-do
+
+- Add scoring
+- Add weights to fruits to reduce bounce
+- Add more UI
+
 ### Setup
 
 - rust/cargo v1.70.0
