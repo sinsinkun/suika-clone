@@ -1,3 +1,4 @@
+// use std::time::Duration;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
@@ -6,7 +7,8 @@ use crate::util::{
   AppState,
   Score,
   SpawnedFruit,
-  SCREEN_H,
+  // CoolDown,
+  // SCREEN_H,
   CONTAINER_W,
   CONTAINER_H,
   CONTAINER_T,
@@ -17,6 +19,10 @@ use crate::util::{
   HOLD_POS,
   HOLD_POS_FRUIT,
   MOVE_SPEED,
+  GRAVITY,
+  RESTITUATION,
+  MIN_SPEED,
+  // CLICK_DELAY,
 };
 
 pub struct InGamePlugin;
@@ -54,11 +60,9 @@ fn setup_game(
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-  // initialize physics
-
   // setup initial state
   // spawn cup base with collider
-  let container_base = -0.45 * SCREEN_H; // 5% offset from bottom
+  let container_base = -0.75 * CONTAINER_H;
   commands.spawn((
     Cup,
     Collider::cuboid(CONTAINER_W / 2.0, CONTAINER_T / 2.0),
@@ -151,7 +155,7 @@ fn setup_game(
   commands.spawn((
     UIComponent,
     MaterialMesh2dBundle {
-      mesh: meshes.add(shape::Quad::new(Vec2::new(120.0, 120.0)).into()).into(),
+      mesh: meshes.add(shape::Circle::new(SUIKA[5].size + 1.0).into()).into(),
       material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
       transform: Transform::from_translation(HOLD_POS),
       ..default()
@@ -171,22 +175,104 @@ fn setup_game(
 fn end_game(
   mut next_state: ResMut<NextState<AppState>>,
   keys: Res<Input<KeyCode>>,
+  spawn_fruits: Query<(&Transform, &Velocity), (With<SpawnedFruit>, Without<ActiveFruit>, Without<NextFruit>)>,
 ) {
+  // quick exit
   if keys.pressed(KeyCode::Q) || keys.pressed(KeyCode::Escape) {
     next_state.set(AppState::GameOver);
   }
+
+  // find if fruit has exceeded limits
+  let max_h = 0.25 * CONTAINER_H - CONTAINER_T;
+  let max_x = 0.5 * CONTAINER_W + CONTAINER_T;
+  for (fruit_t, fruit_v) in spawn_fruits.iter() {
+    if fruit_t.translation.x > max_x {
+      println!("Game Over: fruit has gone outside right boundary {}", fruit_t.translation.x);
+      next_state.set(AppState::GameOver);
+    }
+    if fruit_t.translation.x < -max_x {
+      println!("Game Over: fruit has gone outside left boundary {}", fruit_t.translation.x);
+      next_state.set(AppState::GameOver);
+    }
+    
+    let scalar_v = fruit_v.linvel.length();
+    if scalar_v.abs() < MIN_SPEED && fruit_t.translation.y > max_h {
+      println!("Game Over: fruit has reached max height");
+      next_state.set(AppState::GameOver);
+    }
+  };
 }
 
 fn handle_active_fruit(
   mut commands: Commands,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
-  mut active_fruit_q: Query<(Entity, &mut Transform), With<ActiveFruit>>,
+  mut active_fruit_q: Query<(Entity, &mut Transform, &ActiveFruit), With<ActiveFruit>>,
+  next_fruit_q: Query<&NextFruit>,
   keys: Res<Input<KeyCode>>,
 ) {
   // spawn active fruit if not exist
   match active_fruit_q.get_single_mut() {
-    Ok((_entity, transform)) => {
+    Ok((entity, transform, active_fruit)) => {
+      // let cd = &mut cool_down.into_inner().timer;
+      // cd.tick(time.delta());
+      // println!("timer: {:?}", cd);
+      // spawn active fruit
+      if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return) {
+
+        let cur_fruit = SUIKA[active_fruit.0 as usize];
+        let cur_x = transform.into_inner().translation.x;
+        // spawn collision fruit body
+        commands.spawn((
+          SpawnedFruit,
+          Collider::ball(cur_fruit.size / 2.0),
+          RigidBody::Dynamic,
+          GravityScale(GRAVITY),
+          Restitution::coefficient(RESTITUATION),
+          Velocity {linvel: Vec2::new(0.0, 0.0), angvel: 0.4},
+          ActiveEvents::COLLISION_EVENTS,
+          MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Circle::new(cur_fruit.size / 2.0).into()).into(),
+            material: materials.add(ColorMaterial::from(cur_fruit.color)),
+            transform: Transform::from_translation(Vec3::new(cur_x, CONTAINER_H / 2.0, 0.5)),
+            ..default()
+          },
+        ));
+
+        // despawn active fruit
+        commands.entity(entity).despawn_recursive();
+
+        // pick next fruit
+        let num: i32 = match next_fruit_q.get_single() {
+          Ok(next_fruit) => next_fruit.0,
+          Err(_) => rand::thread_rng().gen_range(0..5)
+        };
+        let active_fruit = SUIKA[num as usize];
+
+        // spawn new active fruit
+        commands.spawn((
+          ActiveFruit(num),
+          SpawnedFruit,
+          MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Circle::new(active_fruit.size / 2.0).into()).into(),
+            material: materials.add(ColorMaterial::from(active_fruit.color)),
+            transform: Transform::from_translation(Vec3::new(cur_x, CONTAINER_H / 2.0, 0.5)),
+            ..default()
+          },
+        )).with_children(|root| {
+          // spawn preview bar
+          root.spawn(MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, 1.25 * CONTAINER_H)).into()).into(),
+            material: materials.add(ColorMaterial::from(Color::WHITE)),
+            transform: Transform::from_translation(Vec3::new(0.0, -0.625 * CONTAINER_H, -1.0)),
+            ..default()
+          });
+        });
+
+        // start cooldown
+        return;
+      }
+      
       // move active fruit
       let mut move_dir = 0.0;
       if keys.pressed(KeyCode::Left) || keys.pressed(KeyCode::A) {
@@ -195,25 +281,33 @@ fn handle_active_fruit(
       if keys.pressed(KeyCode::Right) || keys.pressed(KeyCode::D) {
         move_dir += 1.0;
       }
+      
       // update active fruit render
       let new_x = transform.clone().translation.x + MOVE_SPEED * move_dir;
-      let limit = CONTAINER_W / 2.0 - CONTAINER_P;
+      let limit1 = CONTAINER_W / 2.0 - CONTAINER_P;
+      let suika_num = active_fruit.0;
+      let limit2 = (CONTAINER_W - CONTAINER_T - SUIKA[suika_num as usize].size) / 2.0;
+      // set maximum travel distance
+      let limit = if limit1 < limit2 {
+        limit1
+      } else {
+        limit2
+      };
       if new_x > -limit && new_x < limit {
         transform.into_inner().translation.x = new_x;
-      } else if new_x > limit {
-        transform.into_inner().translation.x = -limit;
-      } else if new_x < -limit {
+      } else if new_x >= limit {
         transform.into_inner().translation.x = limit;
+      } else if new_x <= -limit {
+        transform.into_inner().translation.x = -limit;
       }
     },
     Err(_) => {
-      // pick random fruit
-      let num: i32 = rand::thread_rng().gen_range(0..5);
+      // pick next fruit
+      let num: i32 = match next_fruit_q.get_single() {
+        Ok(next_fruit) => next_fruit.0,
+        Err(_) => rand::thread_rng().gen_range(0..4)
+      };
       let active_fruit = SUIKA[num as usize];
-
-      // preview sizing
-      let p_height = 1.25 * CONTAINER_H;
-      let p_offset = -(0.5 * CONTAINER_H + 50.0);
 
       // spawn new active fruit
       commands.spawn((
@@ -228,9 +322,9 @@ fn handle_active_fruit(
       )).with_children(|root| {
         // spawn preview bar
         root.spawn(MaterialMesh2dBundle {
-          mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, p_height)).into()).into(),
+          mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, 1.25 * CONTAINER_H)).into()).into(),
           material: materials.add(ColorMaterial::from(Color::WHITE)),
-          transform: Transform::from_translation(Vec3::new(0.0, p_offset, 1.0)),
+          transform: Transform::from_translation(Vec3::new(0.0, -0.625 * CONTAINER_H, -1.0)),
           ..default()
         });
       });
@@ -242,17 +336,40 @@ fn handle_next_fruit(
   mut commands: Commands,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
-  mut next_fruit_q: Query<&mut NextFruit>,
+  mut next_fruit_q: Query<Entity, With<NextFruit>>,
+  keys: Res<Input<KeyCode>>,
 ) {
   // spawn active fruit if not exist
   match next_fruit_q.get_single_mut() {
-    Ok(_) => (),
+    Ok(entity) => {
+      if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::S) {
+        // despawn NextFruit
+        commands.entity(entity).despawn_recursive();
+        // spawn new NextFruit
+        // pick random fruit
+        let num: i32 = rand::thread_rng().gen_range(0..5);
+        let next_fruit = SUIKA[num as usize];
+
+        // spawn new NextFruit
+        commands.spawn((
+          NextFruit(num),
+          SpawnedFruit,
+          MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Circle::new(next_fruit.size / 2.0).into()).into(),
+            material: materials.add(ColorMaterial::from(next_fruit.color)),
+            transform: Transform::from_translation(HOLD_POS_FRUIT),
+            ..default()
+          }
+        ));
+        return;
+      }
+    },
     Err(_) => {
       // pick random fruit
-      let num: i32 = rand::thread_rng().gen_range(0..5);
+      let num: i32 = rand::thread_rng().gen_range(0..4);
       let next_fruit = SUIKA[num as usize];
 
-      // spawn new active fruit
+      // spawn new NextFruit
       commands.spawn((
         NextFruit(num),
         SpawnedFruit,
@@ -267,13 +384,6 @@ fn handle_next_fruit(
   }
 }
 
-fn pause_state(
-  fruits: Query<&SpawnedFruit>,
-) {
+fn pause_state() {
   // pause physics
-  let mut len = 0;
-  for _fruit in fruits.iter() {
-    len += 1;
-  }
-  println!("len: {}", len);
 }

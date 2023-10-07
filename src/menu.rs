@@ -97,11 +97,13 @@ fn setup_game_over(mut commands: Commands, score_q: Query<&Score>) {
 
 fn on_loop(
   mut next_state: ResMut<NextState<AppState>>,
-  // state: Res<State<AppState>>,
   mouse_button_input: Res<Input<MouseButton>>,
+  keys: Res<Input<KeyCode>>,
 ) {
-  // println!("On loop in menu {:?}", state);
-  if mouse_button_input.just_pressed(MouseButton::Left) {
+  
+  if keys.just_pressed(KeyCode::Space) || 
+    keys.just_pressed(KeyCode::Return) || 
+    mouse_button_input.just_pressed(MouseButton::Left) {
     next_state.set(AppState::InGame)
   }
 }
