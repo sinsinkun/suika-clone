@@ -28,10 +28,10 @@ pub enum AppState {
 #[derive(Component)]
 pub struct MainCamera;
 
-// #[derive(Component)]
-// pub struct CoolDown {
-//   pub timer: Timer
-// }
+#[derive(Component)]
+pub struct CoolDown {
+  pub timer: Timer
+}
 
 #[derive(Component)]
 pub struct Score(pub i32, pub i32);
@@ -71,7 +71,7 @@ pub const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 pub const CONTAINER_COLOR: Color = Color::rgb(0.24, 0.42, 0.33);
 
 // game objects
-// pub const CLICK_DELAY: f32 = 0.4;
+pub const CLICK_DELAY: f32 = 0.5;
 pub const MOVE_SPEED: f32 = 2.8;
 pub const SUIKA: [Fruit; 11] = [
   Fruit::new(31.2, 0, Color::rgb(0.3373, 0.5686, 0.7843)),

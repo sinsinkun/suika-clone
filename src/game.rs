@@ -1,4 +1,4 @@
-// use std::time::Duration;
+use std::time::Duration;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
@@ -7,7 +7,7 @@ use crate::util::{
   AppState,
   Score,
   SpawnedFruit,
-  // CoolDown,
+  CoolDown,
   // SCREEN_H,
   CONTAINER_W,
   CONTAINER_H,
@@ -22,7 +22,7 @@ use crate::util::{
   GRAVITY,
   RESTITUATION,
   MIN_SPEED,
-  // CLICK_DELAY,
+  CLICK_DELAY,
 };
 
 pub struct InGamePlugin;
@@ -31,6 +31,7 @@ impl Plugin for InGamePlugin {
   fn build(&self, app: &mut App) {
     app.add_systems(OnEnter(AppState::InGame), setup_game)
       .add_systems(Update, end_game.run_if(in_state(AppState::InGame)))
+      .add_systems(Update, handle_inputs.run_if(in_state(AppState::InGame)))
       .add_systems(Update, handle_active_fruit.run_if(in_state(AppState::InGame)))
       .add_systems(Update, handle_next_fruit.run_if(in_state(AppState::InGame)))
       .add_systems(OnExit(AppState::InGame), pause_state);
@@ -53,15 +54,56 @@ struct NextFruit(i32);
 #[derive(Component)]
 struct PreviewBar;
 
+#[derive(Component)]
+struct Controls {
+  move_dir: f32,
+  enter: bool,
+  end_game: bool,
+}
+
 // -- SYSTEMS --
 fn setup_game(
   mut commands: Commands, 
   mut score_q: Query<&mut Score>,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
+  cup: Query<Entity, With<Cup>>,
 ) {
   // setup initial state
+
   // spawn cup base with collider
+  if cup.is_empty() {
+    spawn_cup(&mut commands);
+  }
+  
+  // render hold area
+  commands.spawn((
+    UIComponent,
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
+      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
+      transform: Transform::from_translation(HOLD_POS),
+      ..default()
+    }
+  ));
+
+  // insantiate controls
+  commands.spawn((
+    Controls{ move_dir:0.0, enter:false, end_game:false },
+    CoolDown{ timer:Timer::new(Duration::from_secs_f32(CLICK_DELAY), TimerMode::Once) }
+  ));
+
+  // reset current score
+  match score_q.get_single_mut() {
+    Ok(mut score) => {
+      score.0 = 0;
+    },
+    Err(_) => println!("Could not find score")
+  }
+
+}
+
+fn spawn_cup(commands: &mut Commands) {
   let container_base = -0.75 * CONTAINER_H;
   commands.spawn((
     Cup,
@@ -150,35 +192,16 @@ fn setup_game(
       ..default()
     },
   ));
-  
-  // render hold area
-  commands.spawn((
-    UIComponent,
-    MaterialMesh2dBundle {
-      mesh: meshes.add(shape::Circle::new(SUIKA[5].size + 1.0).into()).into(),
-      material: materials.add(ColorMaterial::from(BG_NO_MOVE_COLOR)),
-      transform: Transform::from_translation(HOLD_POS),
-      ..default()
-    }
-  ));
-
-  // reset current score
-  match score_q.get_single_mut() {
-    Ok(mut score) => {
-      score.0 = 0;
-    },
-    Err(_) => println!("Could not find score")
-  }
-
 }
 
 fn end_game(
   mut next_state: ResMut<NextState<AppState>>,
-  keys: Res<Input<KeyCode>>,
+  controls: Query<&Controls>,
   spawn_fruits: Query<(&Transform, &Velocity), (With<SpawnedFruit>, Without<ActiveFruit>, Without<NextFruit>)>,
 ) {
+  let input = controls.single();
   // quick exit
-  if keys.pressed(KeyCode::Q) || keys.pressed(KeyCode::Escape) {
+  if input.end_game {
     next_state.set(AppState::GameOver);
   }
 
@@ -203,23 +226,57 @@ fn end_game(
   };
 }
 
+fn handle_inputs(
+  mut commands: Commands,
+  mut controls: Query<(&mut Controls, &mut CoolDown)>,
+  keys: Res<Input<KeyCode>>,
+  // mouse_button_input: Res<Input<MouseButton>>,
+  time: Res<Time>,
+) {
+  match controls.get_single_mut() {
+    Ok((mut controls, mut cooldown)) => {
+      cooldown.timer.tick(time.delta());
+      if keys.pressed(KeyCode::Q) || keys.pressed(KeyCode::Escape) {
+        controls.end_game = true;
+      }
+      if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return) {
+        if cooldown.timer.finished() {
+          controls.enter = true;
+          cooldown.timer.reset();
+        } 
+      } else {
+        controls.enter = false;
+      }
+      let mut move_dir = 0.0;
+      if keys.pressed(KeyCode::Left) || keys.pressed(KeyCode::A) {
+        move_dir -= 1.0;
+      }
+      if keys.pressed(KeyCode::Right) || keys.pressed(KeyCode::D) {
+        move_dir += 1.0;
+      }
+      controls.move_dir = move_dir;
+    },
+    Err(_) => {
+      commands.spawn(Controls{ move_dir:0.0, enter:false, end_game:false });
+    }
+  }
+  
+}
+
 fn handle_active_fruit(
   mut commands: Commands,
+  controls: Query<&Controls>,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
   mut active_fruit_q: Query<(Entity, &mut Transform, &ActiveFruit), With<ActiveFruit>>,
   next_fruit_q: Query<&NextFruit>,
-  keys: Res<Input<KeyCode>>,
 ) {
+  let input = controls.single();
   // spawn active fruit if not exist
   match active_fruit_q.get_single_mut() {
     Ok((entity, transform, active_fruit)) => {
-      // let cd = &mut cool_down.into_inner().timer;
-      // cd.tick(time.delta());
-      // println!("timer: {:?}", cd);
       // spawn active fruit
-      if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return) {
-
+      if input.enter {
         let cur_fruit = SUIKA[active_fruit.0 as usize];
         let cur_x = transform.into_inner().translation.x;
         // spawn collision fruit body
@@ -256,7 +313,7 @@ fn handle_active_fruit(
           MaterialMesh2dBundle {
             mesh: meshes.add(shape::Circle::new(active_fruit.size / 2.0).into()).into(),
             material: materials.add(ColorMaterial::from(active_fruit.color)),
-            transform: Transform::from_translation(Vec3::new(cur_x, CONTAINER_H / 2.0, 0.5)),
+            transform: Transform::from_translation(Vec3::new(cur_x, CONTAINER_H / 2.0, 0.4)),
             ..default()
           },
         )).with_children(|root| {
@@ -273,17 +330,8 @@ fn handle_active_fruit(
         return;
       }
       
-      // move active fruit
-      let mut move_dir = 0.0;
-      if keys.pressed(KeyCode::Left) || keys.pressed(KeyCode::A) {
-        move_dir -= 1.0;
-      }
-      if keys.pressed(KeyCode::Right) || keys.pressed(KeyCode::D) {
-        move_dir += 1.0;
-      }
-      
       // update active fruit render
-      let new_x = transform.clone().translation.x + MOVE_SPEED * move_dir;
+      let new_x = transform.clone().translation.x + MOVE_SPEED * input.move_dir;
       let limit1 = CONTAINER_W / 2.0 - CONTAINER_P;
       let suika_num = active_fruit.0;
       let limit2 = (CONTAINER_W - CONTAINER_T - SUIKA[suika_num as usize].size) / 2.0;
@@ -334,15 +382,16 @@ fn handle_active_fruit(
 
 fn handle_next_fruit(
   mut commands: Commands,
+  controls: Query<&Controls>,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
   mut next_fruit_q: Query<Entity, With<NextFruit>>,
-  keys: Res<Input<KeyCode>>,
 ) {
+  let input = controls.single();
   // spawn active fruit if not exist
   match next_fruit_q.get_single_mut() {
     Ok(entity) => {
-      if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::S) {
+      if input.enter {
         // despawn NextFruit
         commands.entity(entity).despawn_recursive();
         // spawn new NextFruit
@@ -384,6 +433,15 @@ fn handle_next_fruit(
   }
 }
 
-fn pause_state() {
+fn pause_state(
+  mut commands: Commands,
+  controls: Query<Entity, With<Controls>>,
+  active_fruit: Query<Entity, With<ActiveFruit>>,
+  next_fruit: Query<Entity, With<NextFruit>>,
+) {
+  // destroy components that should only have 1 existence
+  commands.entity(controls.single()).despawn_recursive();
+  commands.entity(active_fruit.single()).despawn_recursive();
+  commands.entity(next_fruit.single()).despawn_recursive();
   // pause physics
 }
