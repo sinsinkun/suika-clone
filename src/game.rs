@@ -320,14 +320,15 @@ fn handle_inputs(
 
 fn handle_active_fruit(
   mut commands: Commands,
-  controls: Query<&Controls>,
+  controls: Query<(&Controls, &CoolDown)>,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
   mut active_fruit_q: Query<(Entity, &mut Transform, &ActiveFruit), With<ActiveFruit>>,
   next_fruit_q: Query<&NextFruit>,
 ) {
-  let input = controls.single();
-  // spawn active fruit if not exist
+  let (input, _cooldown) = controls.single();
+
+  // get active fruit
   match active_fruit_q.get_single_mut() {
     Ok((entity, transform, active_fruit)) => {
       // spawn active fruit
@@ -352,6 +353,7 @@ fn handle_active_fruit(
         let pos = Vec3::new(cur_x, CONTAINER_H / 2.0, 1.0);
         spawn_active_fruit(&mut commands, &mut meshes, &mut materials, active_fruit, pos);
 
+        // prevent further active control
         return;
       }
       
@@ -376,7 +378,7 @@ fn handle_active_fruit(
       }
     },
     Err(e) => {
-      println!("Err: {:?}", e);
+      println!("Active Fruit Err: {:?}", e);
       // pick new fruit
       let num: i32 = match next_fruit_q.get_single() {
         Ok(next_fruit) => next_fruit.0,
@@ -432,7 +434,7 @@ fn handle_merging(
     if let CollisionEvent::Started(collider_a, collider_b, _) = collision {
       // get fruits from collision, if it was a collision between fruits
       if let Ok([fruit_a, fruit_b]) = fruits.get_many([*collider_a, *collider_b]) {
-        if fruit_a.1.size == fruit_b.1.size {
+        if fruit_a.1.size == fruit_b.1.size && fruit_a.1.id < 10 {
           // calculate midpoint between 2 fruits
           let new_translation = Vec3::new(
             (fruit_a.2.translation.x + fruit_b.2.translation.x) / 2.0,
