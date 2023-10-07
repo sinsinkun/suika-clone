@@ -11,8 +11,8 @@ IonXeph's suika spin off: https://github.com/ionxeph/suika
 ### To-do
 
 - Add scoring
-- Add weights to fruits to reduce bounce
 - Add more UI
+- Fix cup rendering bug
 
 ### Setup
 

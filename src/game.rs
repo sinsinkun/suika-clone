@@ -23,6 +23,9 @@ use crate::util::{
   MIN_SPEED,
   CLICK_DELAY,
   TEXT_COLOR,
+  MAX_SPEED,
+  MAX_X_VELOCITY_BEFORE_CLAMP,
+  MAX_Y_VELOCITY_BEFORE_CLAMP,
 };
 
 pub struct InGamePlugin;
@@ -36,6 +39,7 @@ impl Plugin for InGamePlugin {
           handle_active_fruit,
           handle_next_fruit,
           handle_merging,
+          restrict_velocity,
         ).run_if(in_state(AppState::InGame)))
       .add_systems(OnExit(AppState::InGame), pause_state);
   }
@@ -286,6 +290,7 @@ fn handle_active_fruit(
         commands.spawn((
           cur_fruit,
           Collider::ball(cur_fruit.size / 2.0),
+          ColliderMassProperties::Density(cur_fruit.size.log2()),
           RigidBody::Dynamic,
           GravityScale(GRAVITY),
           Restitution::coefficient(RESTITUATION),
@@ -523,6 +528,7 @@ fn handle_merging(
           commands.spawn((
             new_fruit,
             Collider::ball(new_fruit.size / 2.0),
+            ColliderMassProperties::Density(new_fruit.size.log2()),
             RigidBody::Dynamic,
             GravityScale(GRAVITY),
             Restitution::coefficient(RESTITUATION),
@@ -553,6 +559,17 @@ fn handle_merging(
         }
         
       }
+    }
+  }
+}
+
+fn restrict_velocity(mut velocities: Query<&mut Velocity>) {
+  for mut v in velocities.iter_mut() {
+    if v.linvel.y > MAX_Y_VELOCITY_BEFORE_CLAMP {
+      v.linvel = v.linvel.clamp_length_max(MAX_SPEED);
+    }
+    if v.linvel.x > MAX_X_VELOCITY_BEFORE_CLAMP {
+        v.linvel = v.linvel.clamp_length_max(MAX_SPEED);
     }
   }
 }

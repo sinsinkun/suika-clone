@@ -38,8 +38,6 @@ impl Fruit {
 }
 
 // ---- CONSTANTS ----
-use bevy::prelude::Color;
-
 // sizing
 pub const SCREEN_W: f32 = 1200.0;
 pub const SCREEN_H: f32 = 800.0;
@@ -55,10 +53,9 @@ pub const HOLD_POS_FRUIT: Vec3 = Vec3::new(350.0, 200.0, 0.5);
 // physics
 pub const GRAVITY: f32 = 3.0;
 pub const RESTITUATION: f32 = 0.01;
-// pub const MASS: f32 = 5.0;
-// pub const MAX_SPEED: f32 = 100.0;
-// pub const MAX_Y_VELOCITY_BEFORE_CLAMP: f32 = 50.0;
-// pub const MAX_X_VELOCITY_BEFORE_CLAMP: f32 = 50.0;
+pub const MAX_SPEED: f32 = 100.0;
+pub const MAX_Y_VELOCITY_BEFORE_CLAMP: f32 = 50.0;
+pub const MAX_X_VELOCITY_BEFORE_CLAMP: f32 = 50.0;
 pub const MIN_SPEED: f32 = 3.0;
 
 // colors
