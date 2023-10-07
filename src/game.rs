@@ -38,7 +38,7 @@ impl Plugin for InGamePlugin {
       .add_systems(Update, (
           end_game,
           handle_inputs,
-          handle_active_fruit,
+          handle_active_fruit.before(handle_next_fruit),
           handle_next_fruit,
           handle_merging,
           update_score,
