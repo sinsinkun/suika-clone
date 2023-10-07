@@ -1,5 +1,7 @@
 # Suika Game Clone
 
+![Screenshot](./assets/screenshot.png)
+
 Inspired by IonXeph to create a suika clone in bevy, a game engine that I kinda gave up on.
 
 Not a direct copy, but taking some ideas from his implementation.
