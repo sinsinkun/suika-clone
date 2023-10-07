@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::util::{AppState, Score, SpawnedFruit, TEXT_COLOR};
+use crate::util::{AppState, Score, Fruit, TEXT_COLOR};
 
 pub struct MenuPlugin;
 
@@ -111,7 +111,7 @@ fn on_loop(
 fn cleanup(
   mut commands: Commands, 
   menu_items: Query<Entity, With<MenuItem>>,
-  fruits: Query<Entity, With<SpawnedFruit>>,
+  fruits: Query<Entity, With<Fruit>>,
 ) {
   for menu_item in menu_items.iter() {
     commands.entity(menu_item).despawn_recursive();
