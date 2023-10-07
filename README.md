@@ -21,6 +21,7 @@ IonXeph's suika spin off: https://github.com/ionxeph/suika
 - bevy v0.11.3
 - bevy_rapier2d v0.22.0
 - rand v0.8.5
+- bevy-persistent v0.3.4
 
 I make no guarantees on compatibility.
 

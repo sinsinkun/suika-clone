@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::util::{AppState, Fruit, TEXT_COLOR};
+use crate::util::{AppState, Score, Fruit, TEXT_COLOR};
 
 pub struct MenuPlugin;
 
@@ -20,12 +20,12 @@ pub struct MenuItem;
 
 fn setup_menu(mut commands: Commands) {
 
-  // click anywhere text
+  // start text
   commands.spawn((
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        "click anywhere to begin",
+        "click space to begin",
         TextStyle {
           font_size: 30.0,
           color: TEXT_COLOR,
@@ -38,7 +38,10 @@ fn setup_menu(mut commands: Commands) {
   ));
 }
 
-fn setup_game_over(mut commands: Commands) {
+fn setup_game_over(
+  mut commands: Commands,
+  score: Res<Score>,
+) {
 
   // game over text
   commands.spawn((
@@ -62,7 +65,7 @@ fn setup_game_over(mut commands: Commands) {
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        "Score: TODO",
+        "Score: ".to_owned() + &score.0.to_string(),
         TextStyle {
           font_size: 30.0, 
         color: TEXT_COLOR,
@@ -79,7 +82,7 @@ fn setup_game_over(mut commands: Commands) {
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        "High score: TODO",
+        "High score: ".to_owned() + &score.0.to_string(),
         TextStyle {
           font_size: 30.0, 
         color: TEXT_COLOR,
@@ -94,13 +97,10 @@ fn setup_game_over(mut commands: Commands) {
 
 fn on_loop(
   mut next_state: ResMut<NextState<AppState>>,
-  mouse_button_input: Res<Input<MouseButton>>,
   keys: Res<Input<KeyCode>>,
 ) {
   
-  if keys.just_pressed(KeyCode::Space) || 
-    keys.just_pressed(KeyCode::Return) || 
-    mouse_button_input.just_pressed(MouseButton::Left) {
+  if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Return) {
     next_state.set(AppState::InGame)
   }
 }

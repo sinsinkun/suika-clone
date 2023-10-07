@@ -53,6 +53,9 @@ struct UIComponent;
 struct PermUIComponent;
 
 #[derive(Component)]
+struct UIScore;
+
+#[derive(Component)]
 struct Cup;
 
 #[derive(Component)]
@@ -193,7 +196,10 @@ fn spawn_permanent_ui(
   ));
 }
 
-fn spawn_temp_ui(mut commands: Commands) {
+fn spawn_temp_ui(
+  mut commands: Commands,
+  mut score: ResMut<Score>,
+) {
   // insantiate controls
   commands.spawn((
     Controls{ move_dir:0.0, enter:false, end_game:false },
@@ -203,24 +209,45 @@ fn spawn_temp_ui(mut commands: Commands) {
   // spawn score area
   let x = -HOLD_POS.x;
   let y = HOLD_POS.y;
+  score.0 = 0;
+  let hs = "High Score: ".to_owned() + &score.1.to_string();
 
   // instantiate score
   commands.spawn((
     UIComponent,
-    Score(0, 0),
-    Text2dBundle {
+    SceneBundle {
+      transform: Transform::from_translation(Vec3::new(x, y, 10.0)),
+      ..default()
+    }
+  )).with_children(|root| {
+    // score render
+    root.spawn((Text2dBundle {
       text: Text::from_section(
         "Score: 0",
         TextStyle {
-          font_size: 30.0,
+          font_size: 20.0,
           color: TEXT_COLOR,
           ..default()
         }
       ),
-      transform: Transform::from_translation(Vec3::new(x, y, 10.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, 10.0, 0.0)),
       ..default()
-    }
-  ));
+    }, UIScore));
+    // high score render
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        hs,
+        TextStyle {
+          font_size: 20.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, -10.0, 0.0)),
+      ..default()
+    });
+
+  });
 }
 
 fn end_game(
@@ -256,10 +283,8 @@ fn end_game(
 }
 
 fn handle_inputs(
-  mut commands: Commands,
   mut controls: Query<(&mut Controls, &mut CoolDown)>,
   keys: Res<Input<KeyCode>>,
-  // mouse_button_input: Res<Input<MouseButton>>,
   time: Res<Time>,
 ) {
   match controls.get_single_mut() {
@@ -286,7 +311,7 @@ fn handle_inputs(
       controls.move_dir = move_dir;
     },
     Err(_) => {
-      commands.spawn(Controls{ move_dir:0.0, enter:false, end_game:false });
+      println!("Couldn't find controls instance");
     }
   }
   
@@ -399,7 +424,7 @@ fn handle_merging(
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
   fruits: Query<(Entity, &Fruit, &Transform)>,
-  mut score: Query<&mut Score>,
+  mut score: ResMut<Score>,
 ) {
   for collision in collisions.iter() {
     if let CollisionEvent::Started(collider_a, collider_b, _) = collision {
@@ -419,15 +444,7 @@ fn handle_merging(
           // spawn new fruit from SUIKA + 1
           spawn_collider_fruit(&mut commands,  &mut meshes, &mut materials, new_fruit, new_translation);
           // add points
-          match score.get_single_mut() {
-            Ok(s) => {
-              let scr = s.into_inner();
-              scr.0 += fruit_a.1.score;
-            },
-            Err(_) => {
-              println!("Could not find score object");
-            }
-          }
+          score.0 += fruit_a.1.score;
           // exit for loop - only calculate one successful merge per frame
           break;
         }
@@ -438,11 +455,12 @@ fn handle_merging(
 }
 
 fn update_score(
-  mut score_q: Query<(&mut Text, &Score), With<Score>>,
+  mut score_q: Query<&mut Text, With<UIScore>>,
+  score: ResMut<Score>,
 ) {
-  if let Ok((score_t, score_v)) = score_q.get_single_mut() {
+  if let Ok(score_t) = score_q.get_single_mut() {
     let text = score_t.into_inner();
-    text.sections[0].value = "Score: ".to_owned() + &score_v.0.to_string();
+    text.sections[0].value = "Score: ".to_owned() + &score.0.to_string();
   }
 }
 
@@ -452,6 +470,7 @@ fn pause_state(
   active_fruit: Query<Entity, With<ActiveFruit>>,
   next_fruit: Query<Entity, With<NextFruit>>,
   ui_elements: Query<Entity, With<UIComponent>>,
+  mut score: ResMut<Score>,
 ) {
   // destroy components that should only have 1 existence
   commands.entity(controls.single()).despawn_recursive();
@@ -462,9 +481,15 @@ fn pause_state(
   for e in ui_elements.iter() {
     commands.entity(e).despawn_recursive();
   }
+
+  // calculate high score:
+  if score.0 > score.1 {
+    score.1 = score.0;
+  }
   // pause physics
 }
 
+// --- HELPER FUNCTIONS ---
 fn spawn_active_fruit(
   commands: &mut Commands,
   meshes: &mut ResMut<Assets<Mesh>>,

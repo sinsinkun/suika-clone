@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+// use bevy_persistent::prelude::*;
 
 // ---- SCENES ----
 #[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
@@ -10,6 +11,8 @@ pub enum AppState {
 }
 
 // ---- RESOURCES ----
+#[derive(Resource)]
+pub struct Score (pub i32, pub i32);
 
 // ---- COMPONENTS ----
 #[derive(Component)]
@@ -19,9 +22,6 @@ pub struct MainCamera;
 pub struct CoolDown {
   pub timer: Timer
 }
-
-#[derive(Component)]
-pub struct Score(pub i32, pub i32);
 
 #[derive(Component, Clone, Copy, Debug)]
 pub struct Fruit {

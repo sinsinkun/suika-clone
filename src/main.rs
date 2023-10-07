@@ -5,7 +5,7 @@ use bevy::{prelude::*, window::WindowResized};
 use bevy_rapier2d::prelude::*;
 
 mod util;
-use util::{AppState, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera};
+use util::{AppState, Score, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera};
 
 mod menu;
 use menu::MenuPlugin;
@@ -28,6 +28,7 @@ fn main() {
 			// RapierDebugRenderPlugin::default(),
 		))
 		.insert_resource(ClearColor(BG_COLOR))
+		.insert_resource(Score(0, 1000))
 		.add_state::<AppState>()
 		.add_systems(Startup, initialize)
 		.add_systems(Update, zoom_camera)
