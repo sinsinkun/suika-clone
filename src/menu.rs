@@ -36,23 +36,10 @@ fn setup_menu(mut commands: Commands) {
       ..default()
     },
   )).with_children(|root| {
-    // render controls
-    root.spawn(Text2dBundle {
-      text: Text::from_section(
-        "controls: left/right to move,\nspace to drop fruit",
-        TextStyle {
-          font_size: 25.0,
-          color: TEXT_COLOR,
-          ..default()
-        },
-      ),
-      transform: Transform::from_translation(Vec3::new(0.0, 80.0, 0.0)),
-      ..default()
-    });
     // render instructions
     root.spawn(Text2dBundle {
       text: Text::from_section(
-        "instructions: balls are labelled 0-10.\nSame number balls can merge to form a larger ball.\nAim to get #10!",
+        "instructions:\nballs are labelled 0-10.\n\nSame number balls can merge\nto form a larger ball.\nAim to get #10!",
         TextStyle {
           font_size: 25.0,
           color: TEXT_COLOR,

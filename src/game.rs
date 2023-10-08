@@ -503,10 +503,9 @@ fn handle_active_fruit(
       // spawn active fruit
       if input.drop {
         let cur_fruit = SUIKA[active_fruit.0 as usize];
-        let cur_x = transform.into_inner().translation.x;
-        let cur_y = CONTAINER_H / 2.0;
+        let cur_translation = transform.into_inner().translation;
         let cur_z = rand::thread_rng().gen_range(2.0..5.0);
-        let pos = Vec3::new(cur_x, cur_y, cur_z);
+        let pos = Vec3::new(cur_translation.x, cur_translation.y, cur_z);
         
         // spawn collision fruit body
         spawn_collider_fruit(&mut commands, &mut meshes,  &mut materials, cur_fruit, pos);
@@ -520,7 +519,7 @@ fn handle_active_fruit(
           Err(_) => rand::thread_rng().gen_range(0..4)
         };
         let active_fruit = SUIKA[num as usize];
-        spawn_active_fruit(&mut commands, &positions, &mut meshes, &mut materials, active_fruit, cur_x);
+        spawn_active_fruit(&mut commands, &positions, &mut meshes, &mut materials, active_fruit, cur_translation.x);
 
         // prevent further active control
         return;
