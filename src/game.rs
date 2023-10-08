@@ -429,7 +429,7 @@ fn end_game(
   positions: Res<Positions>,
   mut next_state: ResMut<NextState<AppState>>,
   controls: Query<&Controls>,
-  spawn_fruits: Query<(&Transform, &Velocity), With<Fruit>>,
+  spawned_fruits: Query<(&Transform, &Velocity, &Fruit)>,
   mut time_out: Query<(Entity, &mut CoolDown), With<Timeout>>,
   time: Res<Time>,
 ) {
@@ -453,7 +453,7 @@ fn end_game(
   // find if fruit has exceeded limits
   let max_h = positions.cup_max_y;
   let max_x = positions.cup_right_x + CONTAINER_T;
-  for (fruit_t, fruit_v) in spawn_fruits.iter() {
+  for (fruit_t, fruit_v, fruit) in spawned_fruits.iter() {
     if fruit_t.translation.x > max_x {
       println!("Game Over: fruit has gone outside right boundary {}", fruit_t.translation.x);
       next_state.set(AppState::GameOver);
@@ -464,7 +464,7 @@ fn end_game(
     }
     
     let scalar_v = fruit_v.linvel.length();
-    if scalar_v.abs() < MIN_SPEED && fruit_t.translation.y > max_h {
+    if scalar_v.abs() < MIN_SPEED && fruit_t.translation.y > max_h - (0.4 * fruit.size) {
       // get timeout timer
       match time_out.get_single() {
         Ok((_, cooldown)) => {
@@ -580,7 +580,7 @@ fn handle_active_fruit(
       // pick new fruit
       let num: i32 = match next_fruit_q.get_single() {
         Ok(next_fruit) => next_fruit.0,
-        Err(_) => rand::thread_rng().gen_range(0..4)
+        Err(_) => rand::thread_rng().gen_range(0..3)
       };
       let active_fruit = SUIKA[num as usize];
       spawn_active_fruit(&mut commands, &positions, &mut meshes, &mut materials, active_fruit, 0.0);
@@ -605,14 +605,14 @@ fn handle_next_fruit(
         commands.entity(entity).despawn_recursive();
         // spawn new NextFruit
         // pick random fruit
-        let num: i32 = rand::thread_rng().gen_range(0..4);
+        let num: i32 = rand::thread_rng().gen_range(0..5);
         let next_fruit = SUIKA[num as usize];
         spawn_next_fruit(&mut commands, &mut meshes, &mut materials, next_fruit);
       }
     },
     Err(_) => {
       // pick random fruit
-      let num: i32 = rand::thread_rng().gen_range(0..4);
+      let num: i32 = rand::thread_rng().gen_range(0..5);
       let next_fruit = SUIKA[num as usize];
       spawn_next_fruit(&mut commands, &mut meshes, &mut materials, next_fruit);
     }
@@ -794,6 +794,9 @@ fn spawn_collider_fruit(
   cur_fruit: Fruit,
   position: Vec3,
 ) {
+
+  let angular_vel = (position.z - 3.5) * 0.2;
+
   commands.spawn((
     cur_fruit,
     Collider::ball(cur_fruit.size / 2.0),
@@ -803,7 +806,7 @@ fn spawn_collider_fruit(
     GravityScale(GRAVITY),
     Damping { linear_damping: DAMPENING, angular_damping: 0.0 },
     Restitution::coefficient(RESTITUATION),
-    Velocity {linvel: Vec2::new(0.0, 0.0), angvel: 0.4},
+    Velocity {linvel: Vec2::new(0.0, 0.0), angvel: angular_vel},
     ActiveEvents::COLLISION_EVENTS,
     MaterialMesh2dBundle {
       mesh: meshes.add(shape::Circle::new(cur_fruit.size / 2.0).into()).into(),
