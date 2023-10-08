@@ -34,7 +34,7 @@ impl Plugin for InGamePlugin {
   fn build(&self, app: &mut App) {
     app
       .add_systems(Startup, (spawn_cup, spawn_permanent_ui))
-      .add_systems(OnEnter(AppState::InGame), spawn_temp_ui)
+      .add_systems(OnEnter(AppState::InGame), (spawn_temp_ui, start_physics))
       .add_systems(Update, (
           end_game,
           handle_inputs,
@@ -68,6 +68,9 @@ struct NextFruit(i32);
 
 #[derive(Component)]
 struct PreviewBar;
+
+#[derive(Component)]
+struct Timeout;
 
 #[derive(Component, Debug)]
 struct Controls {
@@ -268,15 +271,35 @@ fn spawn_temp_ui(
   });
 }
 
+fn start_physics(
+  mut rapier_config: ResMut<RapierConfiguration>,
+) {
+  rapier_config.physics_pipeline_active = true;
+}
+
 fn end_game(
+  mut commands: Commands,
   mut next_state: ResMut<NextState<AppState>>,
   controls: Query<&Controls>,
   spawn_fruits: Query<(&Transform, &Velocity), With<Fruit>>,
+  mut time_out: Query<(Entity, &mut CoolDown), With<Timeout>>,
+  time: Res<Time>,
 ) {
   let input = controls.single();
   // quick exit
   if input.end_game {
     next_state.set(AppState::GameOver);
+  }
+
+  // tick timer
+  if let Ok((e, cd)) = time_out.get_single_mut() {
+    let timer = &mut cd.into_inner().timer;
+    timer.tick(time.delta());
+
+    // delete timer if time is over
+    if timer.finished() {
+      commands.entity(e).despawn_recursive();
+    }
   }
 
   // find if fruit has exceeded limits
@@ -294,8 +317,24 @@ fn end_game(
     
     let scalar_v = fruit_v.linvel.length();
     if scalar_v.abs() < MIN_SPEED && fruit_t.translation.y > max_h {
-      println!("Game Over: fruit has reached max height");
-      next_state.set(AppState::GameOver);
+      // get timeout timer
+      match time_out.get_single() {
+        Ok((_, cooldown)) => {
+          if cooldown.timer.finished() {
+            println!("Game Over: fruit has reached max height");
+            next_state.set(AppState::GameOver);
+          } else {
+            println!("Game Over imminent: fruit is past max height");
+          }
+        },
+        Err(_) => {
+          // spawn timeout timer
+          commands.spawn((
+            CoolDown {timer:Timer::from_seconds(0.5, TimerMode::Once)},
+            Timeout
+          ));
+        }
+      }
     }
   };
 }
@@ -379,15 +418,8 @@ fn handle_active_fruit(
       
       // calculations for updating active fruit
       let new_x = transform.clone().translation.x + MOVE_SPEED * input.move_dir;
-      let limit1 = CONTAINER_W / 2.0 - CONTAINER_P;
       let suika_num = active_fruit.0;
-      let limit2 = (CONTAINER_W - CONTAINER_T - SUIKA[suika_num as usize].size) / 2.0;
-      // set maximum travel distance
-      let limit = if limit1 < limit2 {
-        limit1
-      } else {
-        limit2
-      };
+      let limit = (CONTAINER_W - CONTAINER_T - SUIKA[suika_num as usize].size) / 2.0;
       // update active fruit render
       if new_x > -limit && new_x < limit {
         transform.into_inner().translation.x = new_x;
@@ -495,6 +527,7 @@ fn pause_state(
   next_fruit: Query<Entity, With<NextFruit>>,
   ui_elements: Query<Entity, With<UIComponent>>,
   mut score: ResMut<Score>,
+  mut rapier_config: ResMut<RapierConfiguration>,
 ) {
   // destroy components that should only have 1 existence
   commands.entity(controls.single()).despawn_recursive();
@@ -512,7 +545,8 @@ fn pause_state(
   if score.0 > score.1 {
     score.1 = score.0;
   }
-  // TODO: pause physics
+  // pause physics
+  rapier_config.physics_pipeline_active = false;
 }
 
 // --- HELPER FUNCTIONS ---

@@ -44,7 +44,7 @@ pub const SCREEN_H: f32 = 800.0;
 pub const CONTAINER_W: f32 = 400.0;
 pub const CONTAINER_H: f32 = 500.0;
 pub const CONTAINER_T: f32 = 12.0;
-pub const CONTAINER_P: f32 = 32.0;
+pub const CONTAINER_P: f32 = 20.0;
 
 // positions
 pub const HOLD_POS: Vec3 = Vec3::new(350.0, 200.0, 0.0);
