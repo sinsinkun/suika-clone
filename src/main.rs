@@ -3,9 +3,10 @@
 
 use bevy::{prelude::*, window::WindowResized};
 use bevy_rapier2d::prelude::*;
+use bevy_persistent::prelude::*;
 
 mod util;
-use util::{AppState, Score, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera};
+use util::{AppState, Score, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera, HighScore};
 
 mod menu;
 use menu::MenuPlugin;
@@ -28,7 +29,15 @@ fn main() {
 			// RapierDebugRenderPlugin::default(),
 		))
 		.insert_resource(ClearColor(BG_COLOR))
-		.insert_resource(Score(0, 1000))
+		.insert_resource(Score(0, 0))
+		.insert_resource(Persistent::<HighScore>::builder()
+			.name("high scores")
+			.format(StorageFormat::Bincode)
+			.path("./save.bin")
+			.default(HighScore([0,0,0,0,0,0,0,0]))
+			.build()
+			.expect("Err: Could not load high scores")
+		)
 		.add_state::<AppState>()
 		.add_systems(Startup, initialize)
 		.add_systems(Update, zoom_camera)

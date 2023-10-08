@@ -1,6 +1,7 @@
 use std::time::Duration;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_rapier2d::prelude::*;
+use bevy_persistent::prelude::Persistent;
 use rand::Rng;
 
 use crate::util::{
@@ -8,16 +9,21 @@ use crate::util::{
   Score,
   Fruit,
   CoolDown,
+  HighScore,
+  SCREEN_W,
+  SCREEN_H,
   CONTAINER_W,
   CONTAINER_H,
   CONTAINER_T,
   CONTAINER_P,
   CONTAINER_COLOR,
+  CUP_BG_COLOR,
   OVERLAY_COLOR,
   MAX_H_COLOR,
   SUIKA,
   HOLD_POS,
   HOLD_POS_FRUIT,
+  LEGEND_POS,
   MOVE_SPEED,
   GRAVITY,
   RESTITUATION,
@@ -26,25 +32,20 @@ use crate::util::{
   TEXT_COLOR, 
   FRICTION,
   DAMPENING,
-  LEGEND_POS,
-  SCREEN_W,
-  SCREEN_H,
-  CUP_BG_COLOR,
 };
 
 pub struct InGamePlugin;
 
 impl Plugin for InGamePlugin {
   fn build(&self, app: &mut App) {
-    app
-      .insert_resource(Positions {
+    app.insert_resource(Positions {
         cup_base_y: -0.5 * CONTAINER_H - CONTAINER_P,
         cup_max_y: 0.5 * CONTAINER_H - CONTAINER_P,
         cup_left_x: -CONTAINER_W / 2.0,
         cup_right_x: CONTAINER_W / 2.0,
       })
       .add_systems(Startup, (spawn_cup, spawn_permanent_ui))
-      .add_systems(OnEnter(AppState::InGame), (spawn_temp_ui, start_physics))
+      .add_systems(OnEnter(AppState::InGame), reset_game_state)
       .add_systems(Update, (
           end_game,
           handle_inputs,
@@ -75,6 +76,12 @@ struct PermUIComponent;
 
 #[derive(Component)]
 struct UIScore;
+
+#[derive(Component)]
+struct UIHighScore;
+
+#[derive(Component)]
+struct UIHighScoreList(usize);
 
 #[derive(Component)]
 struct Cup;
@@ -226,6 +233,8 @@ fn spawn_permanent_ui(
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
   asset_server: Res<AssetServer>,
+  score: Res<Score>,
+  highscore: Res<Persistent<HighScore>>,
 ) {
   // render hold area
   commands.spawn((
@@ -250,7 +259,6 @@ fn spawn_permanent_ui(
       transform: Transform::from_translation(Vec3::new(0.0, SUIKA[4].size, 0.0)),
       ..default()
     });
-
   });
 
   // render score area
@@ -263,7 +271,7 @@ fn spawn_permanent_ui(
       ..default()
     }
   )).with_children(|root| {
-    // spawn text
+    // score text
     root.spawn(Text2dBundle {
       text: Text::from_section(
         "Score",
@@ -276,6 +284,86 @@ fn spawn_permanent_ui(
       transform: Transform::from_translation(Vec3::new(0.0, SUIKA[5].size, 0.0)),
       ..default()
     });
+    // score render
+    root.spawn((Text2dBundle {
+      text: Text::from_section(
+        "0",
+        TextStyle {
+          font_size: 40.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, 20.0, 0.0)),
+      ..default()
+    }, UIScore));
+    // high score text
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        "Best Score",
+        TextStyle {
+          font_size: 22.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, -10.0, 0.0)),
+      ..default()
+    });
+    // high score render
+    root.spawn((Text2dBundle {
+      text: Text::from_section(
+        score.1.to_string(),
+        TextStyle {
+          font_size: 30.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, -35.0, 0.0)),
+      ..default()
+    }, UIHighScore));
+  });
+
+  // render highscore area
+  commands.spawn((
+    PermUIComponent,
+    MaterialMesh2dBundle {
+      mesh: meshes.add(shape::Quad::new(Vec2::new(280.0, 320.0)).into()).into(),
+      material: materials.add(ColorMaterial::from(OVERLAY_COLOR)),
+      transform: Transform::from_translation(Vec3::new(-HOLD_POS.x, LEGEND_POS.y - 30.0, 0.0)),
+      ..default()
+    }
+  )).with_children(|root| {
+    // render title
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        "High Scores:",
+        TextStyle {
+          font_size: 30.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, 140.0, 0.0)),
+      ..default()
+    });
+    // render updated high scores
+    for (i, hscore) in highscore.0.iter().enumerate() {
+      let y = 80.0 - i as f32 * 30.0;
+      root.spawn((Text2dBundle {
+        text: Text::from_section(
+          hscore.to_string(),
+          TextStyle {
+            font_size: 30.0,
+            color: TEXT_COLOR,
+            ..default()
+          }
+        ),
+        transform: Transform::from_translation(Vec3::new(0.0, y, 10.0)),
+        ..default()
+      }, UIHighScoreList(i)));
+    };
   });
 
   // render legend
@@ -285,7 +373,7 @@ fn spawn_permanent_ui(
       texture: asset_server.load("suika_clone_legend.png"),
       transform: Transform {
         translation: LEGEND_POS,
-        scale: Vec3::new(0.6, 0.6, 1.0), 
+        scale: Vec3::new(0.7, 0.7, 1.0), 
         ..default()
       },
       ..default()
@@ -312,9 +400,11 @@ fn spawn_permanent_ui(
   ));
 }
 
-fn spawn_temp_ui(
+fn reset_game_state(
   mut commands: Commands,
   mut score: ResMut<Score>,
+  mut rapier_config: ResMut<RapierConfiguration>,
+  mut highscore_q: Query<&mut Text, With<UIHighScore>>,
 ) {
   // insantiate controls
   commands.spawn((
@@ -322,68 +412,16 @@ fn spawn_temp_ui(
     CoolDown{ timer:Timer::new(Duration::from_secs_f32(CLICK_DELAY), TimerMode::Once) }
   ));
 
-  // spawn score area
-  let x = -HOLD_POS.x;
-  let y = HOLD_POS.y;
+  // reset score
   score.0 = 0;
+  // update highscore
+  if let Ok(text) = highscore_q.get_single_mut() {
+    text.into_inner().sections[0].value = score.1.to_string();
+  }
 
-  // instantiate score
-  commands.spawn((
-    UIComponent,
-    SceneBundle {
-      transform: Transform::from_translation(Vec3::new(x, y, 10.0)),
-      ..default()
-    }
-  )).with_children(|root| {
-    // score render
-    root.spawn((Text2dBundle {
-      text: Text::from_section(
-        "0",
-        TextStyle {
-          font_size: 40.0,
-          color: TEXT_COLOR,
-          ..default()
-        }
-      ),
-      transform: Transform::from_translation(Vec3::new(0.0, 20.0, 0.0)),
-      ..default()
-    }, UIScore));
-
-    // high score text
-    root.spawn(Text2dBundle {
-      text: Text::from_section(
-        "Best Score",
-        TextStyle {
-          font_size: 22.0,
-          color: TEXT_COLOR,
-          ..default()
-        }
-      ),
-      transform: Transform::from_translation(Vec3::new(0.0, -10.0, 0.0)),
-      ..default()
-    });
-
-    // high score render
-    root.spawn(Text2dBundle {
-      text: Text::from_section(
-        score.1.to_string(),
-        TextStyle {
-          font_size: 30.0,
-          color: TEXT_COLOR,
-          ..default()
-        }
-      ),
-      transform: Transform::from_translation(Vec3::new(0.0, -30.0, 0.0)),
-      ..default()
-    });
-
-  });
-}
-
-fn start_physics(
-  mut rapier_config: ResMut<RapierConfiguration>,
-) {
+  // restart physics simulation
   rapier_config.physics_pipeline_active = true;
+
 }
 
 fn end_game(
@@ -538,8 +576,7 @@ fn handle_active_fruit(
         transform.into_inner().translation.x = -limit;
       }
     },
-    Err(e) => {
-      println!("Active Fruit Err: {:?}", e);
+    Err(_e) => {
       // pick new fruit
       let num: i32 = match next_fruit_q.get_single() {
         Ok(next_fruit) => next_fruit.0,
@@ -635,7 +672,9 @@ fn pause_state(
   next_fruit: Query<Entity, With<NextFruit>>,
   ui_elements: Query<Entity, With<UIComponent>>,
   mut score: ResMut<Score>,
+  mut highscore: ResMut<Persistent<HighScore>>,
   mut rapier_config: ResMut<RapierConfiguration>,
+  mut highscore_list: Query<(&mut Text, &UIHighScoreList)>,
 ) {
   // destroy components that should only have 1 existence
   commands.entity(controls.single()).despawn_recursive();
@@ -649,10 +688,26 @@ fn pause_state(
 
   // TODO: add remaining fruits to score
 
-  // calculate high score:
+  // calculate best score:
   if score.0 > score.1 {
     score.1 = score.0;
   }
+  // update persistent high score
+  let mut temp_score = score.0;
+  for hscore in highscore.0.iter_mut() {
+    if temp_score > *hscore {
+      let temp = temp_score;
+      temp_score = *hscore;
+      *hscore = temp;
+    }
+  }
+  highscore.persist().ok();
+
+  // update highscore list
+  for (text, hs_list) in highscore_list.iter_mut() {
+    text.into_inner().sections[0].value = highscore.0[hs_list.0].to_string();
+  }
+
   // pause physics
   rapier_config.physics_pipeline_active = false;
 }

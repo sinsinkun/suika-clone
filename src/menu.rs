@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use bevy_persistent::Persistent;
 
-use crate::util::{AppState, Score, Fruit, TEXT_COLOR};
+use crate::util::{AppState, Score, HighScore, Fruit, TEXT_COLOR};
 
 pub struct MenuPlugin;
 
@@ -19,6 +20,23 @@ impl Plugin for MenuPlugin {
 pub struct MenuItem;
 
 fn setup_menu(mut commands: Commands) {
+
+  // title
+  commands.spawn((
+    MenuItem,
+    Text2dBundle {
+      text: Text::from_section(
+        "Not Suika Game",
+        TextStyle {
+          font_size: 80.0,
+          color: TEXT_COLOR,
+          ..default()
+        },
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, 120.0, 10.0)),
+      ..default()
+    },
+  ));
 
   // start text
   commands.spawn((
@@ -55,6 +73,7 @@ fn setup_menu(mut commands: Commands) {
 fn setup_game_over(
   mut commands: Commands,
   score: Res<Score>,
+  highscore: Res<Persistent<HighScore>>,
 ) {
 
   // game over text
@@ -96,7 +115,7 @@ fn setup_game_over(
     MenuItem,
     Text2dBundle {
       text: Text::from_section(
-        "High score: ".to_owned() + &score.1.to_string(),
+        "High score: ".to_owned() + &highscore.0[0].to_string(),
         TextStyle {
           font_size: 30.0, 
         color: TEXT_COLOR,

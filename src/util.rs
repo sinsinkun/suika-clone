@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-// use bevy_persistent::prelude::*;
+use serde::{Serialize, Deserialize};
 
 // ---- SCENES ----
 #[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
@@ -13,6 +13,9 @@ pub enum AppState {
 // ---- RESOURCES ----
 #[derive(Resource)]
 pub struct Score (pub i32, pub i32);
+
+#[derive(Resource, Debug, Serialize, Deserialize)]
+pub struct HighScore(pub [i32; 8]);
 
 // ---- COMPONENTS ----
 #[derive(Component)]
@@ -52,9 +55,9 @@ pub const HOLD_POS_FRUIT: Vec3 = Vec3::new(400.0, 200.0, 0.5);
 pub const LEGEND_POS: Vec3 = Vec3::new(400.0, -80.0, 0.0);
 
 // physics
-pub const GRAVITY: f32 = 10.0;
+pub const GRAVITY: f32 = 8.0;
 pub const DAMPENING: f32 = 1.8;
-pub const RESTITUATION: f32 = 0.005;
+pub const RESTITUATION: f32 = 0.1;
 pub const FRICTION: f32 = 0.0;
 pub const MIN_SPEED: f32 = 3.0;
 
