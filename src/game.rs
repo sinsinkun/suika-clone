@@ -27,6 +27,9 @@ use crate::util::{
   FRICTION,
   DAMPENING,
   LEGEND_POS,
+  SCREEN_W,
+  SCREEN_H,
+  CUP_BG_COLOR,
 };
 
 pub struct InGamePlugin;
@@ -34,6 +37,12 @@ pub struct InGamePlugin;
 impl Plugin for InGamePlugin {
   fn build(&self, app: &mut App) {
     app
+      .insert_resource(Positions {
+        cup_base_y: -0.5 * CONTAINER_H - CONTAINER_P,
+        cup_max_y: 0.5 * CONTAINER_H - CONTAINER_P,
+        cup_left_x: -CONTAINER_W / 2.0,
+        cup_right_x: CONTAINER_W / 2.0,
+      })
       .add_systems(Startup, (spawn_cup, spawn_permanent_ui))
       .add_systems(OnEnter(AppState::InGame), (spawn_temp_ui, start_physics))
       .add_systems(Update, (
@@ -46,6 +55,15 @@ impl Plugin for InGamePlugin {
         ).run_if(in_state(AppState::InGame)))
       .add_systems(OnExit(AppState::InGame), pause_state);
   }
+}
+
+// -- RESOURCES --
+#[derive(Resource)]
+struct Positions {
+  cup_base_y: f32,
+  cup_max_y: f32,
+  cup_left_x: f32,
+  cup_right_x: f32,
 }
 
 // -- COMPONENTS --
@@ -82,8 +100,8 @@ struct Controls {
 }
 
 // -- SYSTEMS --
-fn spawn_cup(mut commands: Commands) {
-  let container_base = -0.75 * CONTAINER_H;
+fn spawn_cup(mut commands: Commands, positions: Res<Positions>) {
+  let container_base = positions.cup_base_y - 0.5 * CONTAINER_T;
   commands.spawn((
     Cup,
     Collider::cuboid(CONTAINER_W / 2.0, CONTAINER_T / 2.0),
@@ -99,7 +117,7 @@ fn spawn_cup(mut commands: Commands) {
   ));
 
   let wall_h = CONTAINER_H + CONTAINER_T;
-  let wall_base = container_base + CONTAINER_H / 2.0;
+  let wall_base = container_base + 0.5 * CONTAINER_H;
   // spawn left wall
   commands.spawn((
     Cup,
@@ -111,7 +129,7 @@ fn spawn_cup(mut commands: Commands) {
         ..default()
       },
       transform: Transform::from_xyz(
-        -CONTAINER_W / 2.0,
+        positions.cup_left_x - 0.5 * CONTAINER_T,
         wall_base,
         1.0,
       ),
@@ -129,10 +147,26 @@ fn spawn_cup(mut commands: Commands) {
         ..default()
       },
       transform: Transform::from_xyz(
-        CONTAINER_W / 2.0,
+        positions.cup_right_x + 0.5 * CONTAINER_T,
         wall_base,
         1.0,
       ),
+      ..default()
+    },
+  ));
+
+  // spawn background
+  let bg_x = positions.cup_right_x + positions.cup_left_x;
+  let bg_y = positions.cup_max_y + positions.cup_base_y + CONTAINER_T * 2.0;
+  commands.spawn((
+    Cup,
+    SpriteBundle {
+      sprite: Sprite {
+        custom_size: Some(Vec2::new(CONTAINER_W, CONTAINER_H)),
+        color: CUP_BG_COLOR,
+        ..default()
+      },
+      transform: Transform::from_xyz(bg_x, bg_y, -3.0),
       ..default()
     },
   ));
@@ -147,7 +181,7 @@ fn spawn_cup(mut commands: Commands) {
         ..default()
       },
       transform: Transform::from_xyz(
-        -(CONTAINER_W - CONTAINER_P) / 2.0,
+        positions.cup_left_x + 0.5 * CONTAINER_P,
         wall_base,
         -2.0,
       ),
@@ -164,7 +198,7 @@ fn spawn_cup(mut commands: Commands) {
         ..default()
       },
       transform: Transform::from_xyz(
-        (CONTAINER_W - CONTAINER_P) / 2.0,
+        positions.cup_right_x - 0.5 * CONTAINER_P,
         wall_base,
         -2.0,
       ),
@@ -172,17 +206,16 @@ fn spawn_cup(mut commands: Commands) {
     },
   ));
 
-  let max_h = 0.25 * CONTAINER_H + 0.5 * CONTAINER_T + 1.5;
   // render max height line
   commands.spawn((
     Cup,
     SpriteBundle {
       sprite: Sprite {
-        custom_size: Some(Vec2::new(CONTAINER_W + CONTAINER_T, 1.5)),
+        custom_size: Some(Vec2::new(CONTAINER_W + CONTAINER_T * 2.0, 1.5)),
         color: MAX_H_COLOR,
         ..default()
       },
-      transform: Transform::from_xyz(0.0, max_h, -3.0),
+      transform: Transform::from_xyz(0.0, positions.cup_max_y + 0.75, -3.0),
       ..default()
     },
   ));
@@ -203,20 +236,47 @@ fn spawn_permanent_ui(
       transform: Transform::from_translation(HOLD_POS),
       ..default()
     }
-  ));
+  )).with_children(|root| {
+    // spawn text
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        "Next",
+        TextStyle {
+          font_size: 30.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, SUIKA[4].size, 0.0)),
+      ..default()
+    });
+
+  });
 
   // render score area
-  let x = -HOLD_POS.x;
-  let y = HOLD_POS.y;
   commands.spawn((
     PermUIComponent,
     MaterialMesh2dBundle {
-      mesh: meshes.add(shape::Circle::new(SUIKA[4].size).into()).into(),
+      mesh: meshes.add(shape::Circle::new(SUIKA[5].size).into()).into(),
       material: materials.add(ColorMaterial::from(OVERLAY_COLOR)),
-      transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
+      transform: Transform::from_translation(Vec3::new(-HOLD_POS.x, HOLD_POS.y, 0.0)),
       ..default()
     }
-  ));
+  )).with_children(|root| {
+    // spawn text
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        "Score",
+        TextStyle {
+          font_size: 30.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, SUIKA[5].size, 0.0)),
+      ..default()
+    });
+  });
 
   // render legend
   commands.spawn((
@@ -230,6 +290,25 @@ fn spawn_permanent_ui(
       },
       ..default()
     },
+  ));
+
+  // render controls explanation
+  let controls_x = SCREEN_W / 4.0;
+  let controls_y = 15.0 - SCREEN_H / 2.0;
+  commands.spawn((
+    PermUIComponent,
+    Text2dBundle {
+      text: Text::from_section(
+        "Arrow keys: move | Space: drop | Esc: quit", 
+        TextStyle {
+          font_size: 18.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(controls_x, controls_y, 10.0)),
+      ..default()
+    }
   ));
 }
 
@@ -247,7 +326,6 @@ fn spawn_temp_ui(
   let x = -HOLD_POS.x;
   let y = HOLD_POS.y;
   score.0 = 0;
-  let hs = "High Score: ".to_owned() + &score.1.to_string();
 
   // instantiate score
   commands.spawn((
@@ -260,27 +338,42 @@ fn spawn_temp_ui(
     // score render
     root.spawn((Text2dBundle {
       text: Text::from_section(
-        "Score: 0",
+        "0",
         TextStyle {
-          font_size: 20.0,
+          font_size: 40.0,
           color: TEXT_COLOR,
           ..default()
         }
       ),
-      transform: Transform::from_translation(Vec3::new(0.0, 10.0, 0.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, 20.0, 0.0)),
       ..default()
     }, UIScore));
-    // high score render
+
+    // high score text
     root.spawn(Text2dBundle {
       text: Text::from_section(
-        hs,
+        "Best Score",
         TextStyle {
-          font_size: 20.0,
+          font_size: 22.0,
           color: TEXT_COLOR,
           ..default()
         }
       ),
       transform: Transform::from_translation(Vec3::new(0.0, -10.0, 0.0)),
+      ..default()
+    });
+
+    // high score render
+    root.spawn(Text2dBundle {
+      text: Text::from_section(
+        score.1.to_string(),
+        TextStyle {
+          font_size: 30.0,
+          color: TEXT_COLOR,
+          ..default()
+        }
+      ),
+      transform: Transform::from_translation(Vec3::new(0.0, -30.0, 0.0)),
       ..default()
     });
 
@@ -295,6 +388,7 @@ fn start_physics(
 
 fn end_game(
   mut commands: Commands,
+  positions: Res<Positions>,
   mut next_state: ResMut<NextState<AppState>>,
   controls: Query<&Controls>,
   spawn_fruits: Query<(&Transform, &Velocity), With<Fruit>>,
@@ -319,8 +413,8 @@ fn end_game(
   }
 
   // find if fruit has exceeded limits
-  let max_h = 0.25 * CONTAINER_H - 1.5 * CONTAINER_T;
-  let max_x = 0.5 * CONTAINER_W + CONTAINER_T;
+  let max_h = positions.cup_max_y;
+  let max_x = positions.cup_right_x + CONTAINER_T;
   for (fruit_t, fruit_v) in spawn_fruits.iter() {
     if fruit_t.translation.x > max_x {
       println!("Game Over: fruit has gone outside right boundary {}", fruit_t.translation.x);
@@ -394,6 +488,7 @@ fn handle_inputs(
 
 fn handle_active_fruit(
   mut commands: Commands,
+  positions: Res<Positions>,
   controls: Query<(&Controls, &CoolDown)>,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: ResMut<Assets<ColorMaterial>>,
@@ -425,8 +520,7 @@ fn handle_active_fruit(
           Err(_) => rand::thread_rng().gen_range(0..4)
         };
         let active_fruit = SUIKA[num as usize];
-        let pos = Vec3::new(cur_x, CONTAINER_H / 2.0, 1.0);
-        spawn_active_fruit(&mut commands, &mut meshes, &mut materials, active_fruit, pos);
+        spawn_active_fruit(&mut commands, &positions, &mut meshes, &mut materials, active_fruit, cur_x);
 
         // prevent further active control
         return;
@@ -435,7 +529,7 @@ fn handle_active_fruit(
       // calculations for updating active fruit
       let new_x = transform.clone().translation.x + MOVE_SPEED * input.move_dir;
       let suika_num = active_fruit.0;
-      let limit = (CONTAINER_W - CONTAINER_T - SUIKA[suika_num as usize].size) / 2.0;
+      let limit = positions.cup_right_x - SUIKA[suika_num as usize].size / 2.0;
       // update active fruit render
       if new_x > -limit && new_x < limit {
         transform.into_inner().translation.x = new_x;
@@ -453,8 +547,7 @@ fn handle_active_fruit(
         Err(_) => rand::thread_rng().gen_range(0..4)
       };
       let active_fruit = SUIKA[num as usize];
-      let pos = Vec3::new(0.0, CONTAINER_H / 2.0, 1.0);
-      spawn_active_fruit(&mut commands, &mut meshes, &mut materials, active_fruit, pos);
+      spawn_active_fruit(&mut commands, &positions, &mut meshes, &mut materials, active_fruit, 0.0);
 
     }
   }
@@ -532,7 +625,7 @@ fn update_score(
 ) {
   if let Ok(score_t) = score_q.get_single_mut() {
     let text = score_t.into_inner();
-    text.sections[0].value = "Score: ".to_owned() + &score.0.to_string();
+    text.sections[0].value = score.0.to_string();
   }
 }
 
@@ -568,25 +661,30 @@ fn pause_state(
 // --- HELPER FUNCTIONS ---
 fn spawn_active_fruit(
   commands: &mut Commands,
+  cup_pos: &Positions,
   meshes: &mut ResMut<Assets<Mesh>>,
   materials: &mut ResMut<Assets<ColorMaterial>>,
   fruit: Fruit,
-  position: Vec3,
+  x_pos: f32,
 ) {
+  let active_fruit_y = cup_pos.cup_max_y + SUIKA[5].size / 2.0;
+  let preview_bar_y = cup_pos.cup_base_y;
+  let preview_bar_h = active_fruit_y - cup_pos.cup_base_y;
+
   commands.spawn((
     ActiveFruit(fruit.id),
     MaterialMesh2dBundle {
       mesh: meshes.add(shape::Circle::new(fruit.size / 2.0).into()).into(),
       material: materials.add(ColorMaterial::from(fruit.color)),
-      transform: Transform::from_translation(position),
+      transform: Transform::from_translation(Vec3::new(x_pos, active_fruit_y, 1.0)),
       ..default()
     },
   )).with_children(|root| {
     // spawn preview bar
     root.spawn(MaterialMesh2dBundle {
-      mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, 1.25 * CONTAINER_H)).into()).into(),
+      mesh: meshes.add(shape::Quad::new(Vec2::new(1.5, preview_bar_h)).into()).into(),
       material: materials.add(ColorMaterial::from(Color::WHITE)),
-      transform: Transform::from_translation(Vec3::new(0.0, -0.625 * CONTAINER_H, -1.0)),
+      transform: Transform::from_translation(Vec3::new(0.0, preview_bar_y, -1.0)),
       ..default()
     });
     // spawn text
