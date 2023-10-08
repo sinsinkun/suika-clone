@@ -686,8 +686,6 @@ fn pause_state(
     commands.entity(e).despawn_recursive();
   }
 
-  // TODO: add remaining fruits to score
-
   // calculate best score:
   if score.0 > score.1 {
     score.1 = score.0;

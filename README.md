@@ -10,9 +10,7 @@ IonXeph's suika spin off: https://github.com/ionxeph/suika
 
 ### To-do
 
-- Add persistent scoring
 - Add more UI
-- Balancing
 
 ### Setup
 
