@@ -14,6 +14,7 @@ use crate::util::{
   CONTAINER_P,
   CONTAINER_COLOR,
   OVERLAY_COLOR,
+  MAX_H_COLOR,
   SUIKA,
   HOLD_POS,
   HOLD_POS_FRUIT,
@@ -170,6 +171,21 @@ fn spawn_cup(mut commands: Commands) {
       ..default()
     },
   ));
+
+  let max_h = 0.25 * CONTAINER_H + 0.5 * CONTAINER_T + 1.5;
+  // render max height line
+  commands.spawn((
+    Cup,
+    SpriteBundle {
+      sprite: Sprite {
+        custom_size: Some(Vec2::new(CONTAINER_W + CONTAINER_T, 1.5)),
+        color: MAX_H_COLOR,
+        ..default()
+      },
+      transform: Transform::from_xyz(0.0, max_h, -3.0),
+      ..default()
+    },
+  ));
 }
 
 fn spawn_permanent_ui(
@@ -303,7 +319,7 @@ fn end_game(
   }
 
   // find if fruit has exceeded limits
-  let max_h = 0.25 * CONTAINER_H - CONTAINER_T;
+  let max_h = 0.25 * CONTAINER_H - 1.5 * CONTAINER_T;
   let max_x = 0.5 * CONTAINER_W + CONTAINER_T;
   for (fruit_t, fruit_v) in spawn_fruits.iter() {
     if fruit_t.translation.x > max_x {
@@ -629,7 +645,7 @@ fn spawn_collider_fruit(
   commands.spawn((
     cur_fruit,
     Collider::ball(cur_fruit.size / 2.0),
-    ColliderMassProperties::Density(cur_fruit.size.log2()),
+    ColliderMassProperties::Density((cur_fruit.size + 10.0).log10()),
     Friction { coefficient: FRICTION, combine_rule: CoefficientCombineRule::Max },
     RigidBody::Dynamic,
     GravityScale(GRAVITY),

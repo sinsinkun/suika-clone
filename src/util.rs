@@ -44,7 +44,7 @@ pub const SCREEN_H: f32 = 800.0;
 pub const CONTAINER_W: f32 = 400.0;
 pub const CONTAINER_H: f32 = 500.0;
 pub const CONTAINER_T: f32 = 12.0;
-pub const CONTAINER_P: f32 = 20.0;
+pub const CONTAINER_P: f32 = 25.0;
 
 // positions
 pub const HOLD_POS: Vec3 = Vec3::new(350.0, 200.0, 0.0);
@@ -63,6 +63,7 @@ pub const BG_COLOR: Color = Color::rgb(0.7843, 0.6549, 0.3373);
 pub const OVERLAY_COLOR: Color = Color::rgba(0.0, 0.0, 0.0, 0.2);
 pub const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 pub const CONTAINER_COLOR: Color = Color::rgb(0.24, 0.42, 0.33);
+pub const MAX_H_COLOR: Color = Color::rgba(1.0, 0.2, 0.2, 0.8);
 
 // game objects
 pub const CLICK_DELAY: f32 = 0.4;
