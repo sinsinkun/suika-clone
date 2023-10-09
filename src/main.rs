@@ -15,11 +15,20 @@ mod game;
 use game::InGamePlugin;
 
 fn main() {
+
+	// set persistent save location
+	let mut persistent_path = "./save.bin";
+	if cfg!(target_arch = "wasm32") {
+		persistent_path = "local/save.bin";
+	}
+
 	App::new()
 		.add_plugins(DefaultPlugins.set(WindowPlugin {
 			primary_window: Some(Window {
 				title: "Suika Clone".into(),
 				resolution: (SCREEN_W, SCREEN_H).into(),
+				fit_canvas_to_parent: true,
+				prevent_default_event_handling: false,
 				..default()
 			}),
 			..default()
@@ -33,7 +42,7 @@ fn main() {
 		.insert_resource(Persistent::<HighScore>::builder()
 			.name("high scores")
 			.format(StorageFormat::Bincode)
-			.path("./save.bin")
+			.path(persistent_path)
 			.default(HighScore([0,0,0,0,0,0,0,0]))
 			.build()
 			.expect("Err: Could not load high scores")
