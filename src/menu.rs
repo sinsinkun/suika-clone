@@ -131,9 +131,15 @@ fn setup_game_over(
 fn on_loop(
   mut next_state: ResMut<NextState<AppState>>,
   keys: Res<Input<KeyCode>>,
+  touches: Res<Touches>,
 ) {
   
   if keys.just_pressed(KeyCode::Return) {
+    next_state.set(AppState::InGame)
+  }
+
+  // handle touch
+  if touches.any_just_released() {
     next_state.set(AppState::InGame)
   }
 }
