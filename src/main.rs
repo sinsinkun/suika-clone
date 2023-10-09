@@ -5,6 +5,7 @@ use bevy::{prelude::*, window::WindowResized};
 use bevy_rapier2d::prelude::*;
 use bevy_persistent::prelude::*;
 
+#[cfg(target_arch = "wasm32")]
 use bevy::input::touch::TouchPhase;
 
 mod util;
@@ -94,6 +95,7 @@ fn zoom_camera(
 	}
 }
 
+#[cfg(target_arch = "wasm32")]
 pub fn mock_touch(
 	mouse: Res<Input<MouseButton>>,
 	windows: Query<&Window>,
@@ -117,4 +119,9 @@ pub fn mock_touch(
 			id: 0,
 		})
 	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn mock_touch() {
+	// NOTHING
 }
