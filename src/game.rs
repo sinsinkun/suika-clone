@@ -529,8 +529,10 @@ fn handle_inputs(
       }
       if let Some(finger) = touches.get_pressed(controls.touch_id) {
         let delta_x = finger.position().x - finger.start_position().x;
-        if delta_x > 30.0 || delta_x < -30.0 {
-          controls.move_dir = delta_x * 0.003;
+        if delta_x > 30.0 {
+          controls.move_dir = (delta_x - 30.0) * 0.008;
+        } else if delta_x < -20.0 {
+          controls.move_dir = (delta_x + 30.0) * 0.008;
         } else {
           controls.move_dir = 0.0;
         }
@@ -540,8 +542,6 @@ fn handle_inputs(
         controls.drop = true;
         controls.drop_lock = true;
         cooldown.timer.reset();
-      } else {
-        controls.drop = false;
       }
     },
     Err(_) => {
