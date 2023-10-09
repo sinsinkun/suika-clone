@@ -10,6 +10,7 @@ IonXeph's suika spin off: https://github.com/ionxeph/suika
 
 ### To-do
 
+- Fix bug: next_fruit and active_fruit sometimes syncs up
 - Add more UI
 
 ### Setup
