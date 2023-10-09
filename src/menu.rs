@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, input::touch::TouchPhase};
 use bevy_persistent::Persistent;
 
 use crate::util::{AppState, Score, HighScore, Fruit, TEXT_COLOR};
@@ -131,7 +131,7 @@ fn setup_game_over(
 fn on_loop(
   mut next_state: ResMut<NextState<AppState>>,
   keys: Res<Input<KeyCode>>,
-  touches: Res<Touches>,
+  mut touch_events: EventReader<TouchInput>,
 ) {
   
   if keys.just_pressed(KeyCode::Return) {
@@ -139,8 +139,10 @@ fn on_loop(
   }
 
   // handle touch
-  if touches.any_just_released() {
-    next_state.set(AppState::InGame)
+  for touch in touch_events.iter() {
+    if touch.phase == TouchPhase::Ended {
+      next_state.set(AppState::InGame)
+    }
   }
 }
 

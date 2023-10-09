@@ -1,5 +1,5 @@
 use std::time::Duration;
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle, input::touch::TouchPhase};
 use bevy_rapier2d::prelude::*;
 use bevy_persistent::prelude::Persistent;
 use rand::Rng;
@@ -105,6 +105,7 @@ struct Controls {
   drop: bool,
   end_game: bool,
   touch_id: u64,
+  touch_start: Vec2,
 }
 
 // -- SYSTEMS --
@@ -409,7 +410,14 @@ fn reset_game_state(
 ) {
   // insantiate controls
   commands.spawn((
-    Controls{ move_dir:0.0, drop_lock:false, drop:false, end_game:false, touch_id:0 },
+    Controls { 
+      move_dir:0.0,
+      drop_lock:false,
+      drop:false,
+      end_game:false, 
+      touch_id:0,
+      touch_start:Vec2::new(0.0, 0.0),
+    },
     CoolDown{ timer:Timer::new(Duration::from_secs_f32(CLICK_DELAY), TimerMode::Once) }
   ));
 
@@ -491,7 +499,7 @@ fn end_game(
 fn handle_inputs(
   mut controls: Query<(&mut Controls, &mut CoolDown)>,
   keys: Res<Input<KeyCode>>,
-  touches: Res<Touches>,
+  mut touch_events: EventReader<TouchInput>,
   time: Res<Time>,
 ) {
   match controls.get_single_mut() {
@@ -519,29 +527,30 @@ fn handle_inputs(
       }
       controls.move_dir = move_dir;
 
-      // handle touch inputs
-      for finger in touches.iter() {
-        // register newest finger
-        if touches.just_pressed(finger.id()) && controls.touch_id != finger.id() {
-          controls.touch_id = finger.id();
+      // touch events
+      for touch in touch_events.iter() {
+        // start tracking newest touch
+        if touch.phase == TouchPhase::Started {
+          controls.touch_id = touch.id;
+          controls.touch_start = touch.position;
           break;
         }
-      }
-      if let Some(finger) = touches.get_pressed(controls.touch_id) {
-        let delta_x = finger.position().x - finger.start_position().x;
-        if delta_x > 30.0 {
-          controls.move_dir = (delta_x - 30.0) * 0.008;
-        } else if delta_x < -20.0 {
-          controls.move_dir = (delta_x + 30.0) * 0.008;
-        } else {
+        // drop on touch release
+        if touch.phase == TouchPhase::Ended && touch.id == controls.touch_id && !controls.drop_lock {
           controls.move_dir = 0.0;
+          controls.drop = true;
+          controls.drop_lock = true;
+          cooldown.timer.reset();
         }
-      }
-      if touches.just_released(controls.touch_id) && !controls.drop_lock {
-        controls.move_dir = 0.0;
-        controls.drop = true;
-        controls.drop_lock = true;
-        cooldown.timer.reset();
+        // change move dir
+        if touch.phase == TouchPhase::Moved && touch.id == controls.touch_id {
+          let delta_x = touch.position.x - controls.touch_start.x;
+          if delta_x > 30.0 {
+            controls.move_dir = (delta_x - 30.0) * 0.008;
+          } else if delta_x < -20.0 {
+            controls.move_dir = (delta_x + 30.0) * 0.008;
+          }
+        }
       }
     },
     Err(_) => {
