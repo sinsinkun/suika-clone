@@ -5,6 +5,9 @@ use bevy::{prelude::*, window::WindowResized};
 use bevy_rapier2d::prelude::*;
 use bevy_persistent::prelude::*;
 
+#[cfg(debug_assertions)]
+use bevy::input::touch::TouchPhase;
+
 mod util;
 use util::{AppState, Score, BG_COLOR, SCREEN_H, SCREEN_W, MainCamera, HighScore};
 
@@ -50,6 +53,7 @@ fn main() {
 		.add_state::<AppState>()
 		.add_systems(Startup, initialize)
 		.add_systems(Update, zoom_camera)
+		.add_systems(Update, mock_touch)
 		.add_plugins(InGamePlugin)
 		.add_plugins(MenuPlugin)
 		.run();
@@ -62,22 +66,62 @@ fn initialize(mut commands: Commands) {
 
 fn zoom_camera(
 	mut resize_reader: EventReader<WindowResized>,
-	mut camera: Query<&mut OrthographicProjection, With<MainCamera>>,
+	windows: Query<&Window>,
+	mut camera: Query<(&mut OrthographicProjection, &mut Transform), With<MainCamera>>,
 ) {
 	// note: only works if there's a single camera + single window
-	for e in resize_reader.iter() {
-		// find largest change
-		let delta_x = SCREEN_W / e.width;
-		let delta_y = SCREEN_H / e.height;
-
-		let delta = if delta_y > delta_x {
-			delta_y
-		} else {
-			delta_x
-		};
-
-		for mut projection in camera.iter_mut() {
+	for (mut projection, mut transform) in camera.iter_mut() {
+		// scale camera view based on resize delta
+		for e in resize_reader.iter() {
+			// find largest change
+			let delta_x = SCREEN_W / e.width;
+			let delta_y = SCREEN_H / e.height;
+	
+			let delta = if delta_y > delta_x {
+				delta_y
+			} else {
+				delta_x
+			};
 			projection.scale = delta;
 		}
+
+		// rotate camera 90 deg if window h > window w
+		let window = windows.single();
+		if window.height() > window.width() * 1.2 {
+			transform.rotation = Quat::from_rotation_z(1.5708);
+		} else {
+			transform.rotation = Quat::from_rotation_z(0.0);
+		}
 	}
+}
+
+#[cfg(debug_assertions)]
+pub fn mock_touch(
+	mouse: Res<Input<MouseButton>>,
+	windows: Query<&Window>,
+	mut touch_events: EventWriter<TouchInput>,
+) {
+	let window = windows.single();
+	let touch_phase = if mouse.just_pressed(MouseButton::Left) {
+		Some(TouchPhase::Started)
+	} else if mouse.just_released(MouseButton::Left) {
+		Some(TouchPhase::Ended)
+	} else if mouse.pressed(MouseButton::Left) {
+		Some(TouchPhase::Moved)
+	} else {
+		None
+	};
+	if let (Some(phase), Some(cursor_pos)) = (touch_phase, window.cursor_position()) {
+		touch_events.send(TouchInput {
+			phase: phase,
+			position: cursor_pos,
+			force: None,
+			id: 0,
+		})
+	}
+}
+
+#[cfg(not(debug_assertions))]
+pub fn mock_touch() {
+	// NOTHING
 }
