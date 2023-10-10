@@ -31,7 +31,7 @@ fn main() {
 				title: "Suika Clone".into(),
 				resolution: (SCREEN_W, SCREEN_H).into(),
 				fit_canvas_to_parent: true,
-				prevent_default_event_handling: false,
+				prevent_default_event_handling: true,
 				..default()
 			}),
 			..default()
