@@ -553,7 +553,6 @@ fn handle_inputs(
 
       // touch events
       for touch in touch_events.iter() {
-        let mut phase_str = "Phase: -";
         // start tracking newest touch
         if touch.phase == TouchPhase::Started {
           controls.touch_id = touch.id;
@@ -566,29 +565,28 @@ fn handle_inputs(
           controls.drop = true;
           controls.drop_lock = true;
           cooldown.timer.reset();
-          phase_str = "Phase: Ended";
         }
         // change move dir
         if touch.phase == TouchPhase::Moved && touch.id == controls.touch_id {
           let delta_x = touch.position.x - controls.touch_start.x;
           let delta_y = touch.position.y - controls.touch_start.y;
-          phase_str = "Phase: Moved";
-          if flip_touch_dir && delta_y > 30.0 {
-            controls.move_dir = (delta_y - 30.0) * 0.008;
-          } else if flip_touch_dir && delta_y < -30.0 {
-            controls.move_dir = (delta_y + 30.0) * 0.008;
-          } else if delta_x > 30.0 {
-            controls.move_dir = (delta_x - 30.0) * 0.008;
-          } else if delta_x < -20.0 {
-            controls.move_dir = (delta_x + 30.0) * 0.008;
+          let dead_zone = 20.0;
+          let max_speed = 3.0;
+          if flip_touch_dir && delta_y > dead_zone {
+            controls.move_dir = f32::min((delta_y - dead_zone) * 0.02, max_speed);
+          } else if flip_touch_dir && delta_y < -dead_zone {
+            controls.move_dir = f32::max((delta_y + dead_zone) * 0.02, -max_speed);
+          } else if delta_x > dead_zone {
+            controls.move_dir = f32::min((delta_x - dead_zone) * 0.02, max_speed);
+          } else if delta_x < -dead_zone {
+            controls.move_dir = f32::max((delta_x + dead_zone) * 0.02, -max_speed);
           }
         }
 
         if let Ok(mut controls_text) = controls_ui.get_single_mut() {
           let print_info: String = controls.touch_id.to_string() + 
             " " + &controls.touch_start.to_string() +
-            " " + &touch.position.to_string() +
-            " " + phase_str;
+            " " + &touch.position.to_string();
           controls_text.sections[1].value = print_info;
         }
       }
