@@ -1,7 +1,7 @@
 // prevent console on release build
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use bevy::{prelude::*, window::WindowResized};
+use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use bevy_persistent::prelude::*;
 
@@ -31,7 +31,7 @@ fn main() {
 				title: "Suika Clone".into(),
 				resolution: (SCREEN_W, SCREEN_H).into(),
 				fit_canvas_to_parent: true,
-				prevent_default_event_handling: true,
+				prevent_default_event_handling: false,
 				..default()
 			}),
 			..default()
@@ -65,31 +65,33 @@ fn initialize(mut commands: Commands) {
 }
 
 fn zoom_camera(
-	mut resize_reader: EventReader<WindowResized>,
 	windows: Query<&Window>,
-	mut camera: Query<(&mut OrthographicProjection, &mut Transform), With<MainCamera>>,
+	mut camera: Query<&mut Transform, With<MainCamera>>,
 ) {
 	// note: only works if there's a single camera + single window
-	for (mut projection, mut transform) in camera.iter_mut() {
-		// scale camera view based on resize delta
-		for e in resize_reader.iter() {
-			// find largest change
-			let delta_x = SCREEN_W / e.width;
-			let delta_y = SCREEN_H / e.height;
-	
+	for mut transform in camera.iter_mut() {
+		let window = windows.single();
+
+		// rotate camera 90 deg if window h > window w
+		if window.height() > window.width() * 1.1 {
+			let delta_x = SCREEN_H / window.width();
+			let delta_y = SCREEN_W / window.height();
 			let delta = if delta_y > delta_x {
 				delta_y
 			} else {
 				delta_x
 			};
-			projection.scale = delta;
-		}
-
-		// rotate camera 90 deg if window h > window w
-		let window = windows.single();
-		if window.height() > window.width() * 1.2 {
+			transform.scale = Vec3::new(delta, delta, 1.0);
 			transform.rotation = Quat::from_rotation_z(1.5708);
 		} else {
+			let delta_x = SCREEN_W / window.width();
+			let delta_y = SCREEN_H / window.height();
+			let delta = if delta_y > delta_x {
+				delta_y
+			} else {
+				delta_x
+			};
+			transform.scale = Vec3::new(delta, delta, 1.0);
 			transform.rotation = Quat::from_rotation_z(0.0);
 		}
 	}
