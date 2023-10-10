@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.1">
     <title>Not Suika Game</title>
-    <meta name="description" content="Suika game clone - v0.5.4">
+    <meta name="description" content="Suika game clone - v0.5.5">
   </head>
 
   <style>
     body, html {
       padding: 0;
       margin: 0;
-      /* height: 100vh; */
+      height: 100vh;
       width: 100vw;
     }
     canvas {
@@ -28,15 +28,17 @@
     -->
     <script type="module">
       import init from "./pkg/suika-clone.js";
-      init();
 
       function ignoreTouchEvents(e) {
         e.preventDefault();
         return false;
       }
+
       document.addEventListener("touchstart", ignoreTouchEvents, false);
       document.addEventListener("touchmove", ignoreTouchEvents, false);
       document.addEventListener("touchend", ignoreTouchEvents, false);
+
+      init();
     </script>
   </body>
 </html>

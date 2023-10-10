@@ -394,7 +394,7 @@ fn spawn_permanent_ui(
     Text2dBundle {
       text: Text::from_sections([
         TextSection {
-          value: "Arrow keys: move | Space: drop | Esc: quit | Touch debug:".to_string(), 
+          value: "Arrow keys: move | Space: drop | Esc: quit | Touch id:".to_string(), 
           style: TextStyle {
             font_size: 18.0,
             color: TEXT_COLOR,
@@ -516,7 +516,16 @@ fn handle_inputs(
   mut touch_events: EventReader<TouchInput>,
   time: Res<Time>,
   mut controls_ui: Query<&mut Text, With<UIControls>>,
+  windows: Query<&Window>,
 ) {
+  
+  // flip touch direction when window switches views
+  let window = windows.single();
+  let mut flip_touch_dir = false;
+  if window.height() > window.width() * 1.2 {
+    flip_touch_dir = true;
+  }
+
   match controls.get_single_mut() {
     Ok((mut controls, mut cooldown)) => {
       cooldown.timer.tick(time.delta());
@@ -562,8 +571,13 @@ fn handle_inputs(
         // change move dir
         if touch.phase == TouchPhase::Moved && touch.id == controls.touch_id {
           let delta_x = touch.position.x - controls.touch_start.x;
+          let delta_y = touch.position.y - controls.touch_start.y;
           phase_str = "Phase: Moved";
-          if delta_x > 30.0 {
+          if flip_touch_dir && delta_y > 30.0 {
+            controls.move_dir = (delta_y - 30.0) * 0.008;
+          } else if flip_touch_dir && delta_y < -30.0 {
+            controls.move_dir = (delta_y + 30.0) * 0.008;
+          } else if delta_x > 30.0 {
             controls.move_dir = (delta_x - 30.0) * 0.008;
           } else if delta_x < -20.0 {
             controls.move_dir = (delta_x + 30.0) * 0.008;
