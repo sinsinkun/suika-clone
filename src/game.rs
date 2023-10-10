@@ -10,7 +10,7 @@ use crate::util::{
   Fruit,
   CoolDown,
   HighScore,
-  SCREEN_W,
+  // SCREEN_W,
   SCREEN_H,
   CONTAINER_W,
   CONTAINER_H,
@@ -79,6 +79,9 @@ struct UIScore;
 
 #[derive(Component)]
 struct UIHighScore;
+
+#[derive(Component)]
+struct UIControls;
 
 #[derive(Component)]
 struct UIHighScoreList(usize);
@@ -383,19 +386,30 @@ fn spawn_permanent_ui(
   ));
 
   // render controls explanation
-  let controls_x = SCREEN_W / 4.0;
+  let controls_x = 0.0; // SCREEN_W / 4.0;
   let controls_y = 15.0 - SCREEN_H / 2.0;
   commands.spawn((
     PermUIComponent,
+    UIControls,
     Text2dBundle {
-      text: Text::from_section(
-        "Arrow keys: move | Space: drop | Esc: quit", 
-        TextStyle {
-          font_size: 18.0,
-          color: TEXT_COLOR,
-          ..default()
-        }
-      ),
+      text: Text::from_sections([
+        TextSection {
+          value: "Arrow keys: move | Space: drop | Esc: quit | Touch debug:".to_string(), 
+          style: TextStyle {
+            font_size: 18.0,
+            color: TEXT_COLOR,
+            ..default()
+          }
+        },
+        TextSection {
+          value: "".to_string(), 
+          style: TextStyle {
+            font_size: 18.0,
+            color: TEXT_COLOR,
+            ..default()
+          }
+        },
+      ]),
       transform: Transform::from_translation(Vec3::new(controls_x, controls_y, 10.0)),
       ..default()
     }
@@ -501,6 +515,7 @@ fn handle_inputs(
   keys: Res<Input<KeyCode>>,
   mut touch_events: EventReader<TouchInput>,
   time: Res<Time>,
+  mut controls_ui: Query<&mut Text, With<UIControls>>,
 ) {
   match controls.get_single_mut() {
     Ok((mut controls, mut cooldown)) => {
@@ -529,6 +544,7 @@ fn handle_inputs(
 
       // touch events
       for touch in touch_events.iter() {
+        let mut phase_str = "Phase: -";
         // start tracking newest touch
         if touch.phase == TouchPhase::Started {
           controls.touch_id = touch.id;
@@ -541,15 +557,25 @@ fn handle_inputs(
           controls.drop = true;
           controls.drop_lock = true;
           cooldown.timer.reset();
+          phase_str = "Phase: Ended";
         }
         // change move dir
         if touch.phase == TouchPhase::Moved && touch.id == controls.touch_id {
           let delta_x = touch.position.x - controls.touch_start.x;
+          phase_str = "Phase: Moved";
           if delta_x > 30.0 {
             controls.move_dir = (delta_x - 30.0) * 0.008;
           } else if delta_x < -20.0 {
             controls.move_dir = (delta_x + 30.0) * 0.008;
           }
+        }
+
+        if let Ok(mut controls_text) = controls_ui.get_single_mut() {
+          let print_info: String = controls.touch_id.to_string() + 
+            " " + &controls.touch_start.to_string() +
+            " " + &touch.position.to_string() +
+            " " + phase_str;
+          controls_text.sections[1].value = print_info;
         }
       }
     },
